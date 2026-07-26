@@ -18,8 +18,8 @@ Server **tidak** menyimpan 415 MB data KBBI. `src/data/reader.ts` memakai mode h
 - Strategi data = **blob + jsDelivr** (per-file), karena data dipakai per-kata untuk pengujian & akses MCP. Lihat rekomendasi di `implementation_plan.md`.
 
 ### TODO
-- [ ] Pin `CDN_BASE` ke tag data (`@data-vX`) alih-alih `@main` untuk reproducibility.
-- [ ] Buat repo GitHub + push (**perlu izin/aksi pengguna**).
+- [x] Pin `CDN_BASE` ke tag data — sekarang `@data-v1` (dari `@main`).
+- [x] Buat repo GitHub + push — https://github.com/mlengse/kbbi-mcp-server
 - [ ] `patterns/id.cjs` dipertimbangkan pindah ke lapisan `pattern/`.
 
 ## Catatan
