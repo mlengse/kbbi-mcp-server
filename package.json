@@ -1,0 +1,39 @@
+{
+  "name": "kbbi-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server untuk KBBI — data kamus bahasa Indonesia untuk training stemmer & pemenggalan kata",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "kbbi-mcp": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:browser": "node scripts/build-browser.cjs",
+    "dev": "tsx src/index.ts",
+    "start": "node build/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector build/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "kbbi",
+    "bahasa-indonesia",
+    "stemmer",
+    "hyphenation",
+    "pemenggalan-kata",
+    "nlp"
+  ],
+  "license": "GPL-3.0",
+  "author": "mLengse <[medtosys@gmail.com]>",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "hypher": "github:mlengse/hypher",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
