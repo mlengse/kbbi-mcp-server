@@ -17,7 +17,7 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = resolve(__dirname, "..", "..");
 
 const CDN_BASE =
-  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v1";
+  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v2";
 
 // ============================================================
 // Helper: file exists check
