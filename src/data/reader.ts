@@ -16,8 +16,41 @@ const __dirname = dirname(__filename);
 // Resolve the project root (two levels up from src/data/)
 const PROJECT_ROOT = resolve(__dirname, "..", "..");
 
-const CDN_BASE =
+// Primary CDN base: always-latest `main` branch for development.
+// Override with KBBI_CDN_BASE (e.g. @data-v3) for pinned production.
+const DEFAULT_CDN_BASE =
+  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@main";
+// Stable fallback: pinned tag with all data verified.
+const FALLBACK_CDN_BASE =
   "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v3";
+
+function getCdnBase(): string {
+  return process.env.KBBI_CDN_BASE || DEFAULT_CDN_BASE;
+}
+
+/**
+ * Fetch a file from CDN. Tries primary base (@main by default), then
+ * falls back to the stable tag (@data-v3) if the file is missing.
+ */
+async function fetchCdn(relativePath: string): Promise<Response> {
+  const primary = getCdnBase();
+  let response = await fetch(`${primary}/${relativePath}`);
+  if (response.ok) {
+    return response;
+  }
+  if (primary !== FALLBACK_CDN_BASE) {
+    console.warn(
+      `KBBI CDN: ${response.status} ${primary}/${relativePath}; falling back to ${FALLBACK_CDN_BASE}`
+    );
+    response = await fetch(`${FALLBACK_CDN_BASE}/${relativePath}`);
+    if (response.ok) {
+      return response;
+    }
+  }
+  throw new Error(
+    `CDN fetch failed: ${response.status} ${primary}/${relativePath}`
+  );
+}
 
 // ============================================================
 // Helper: file exists check
@@ -46,11 +79,7 @@ async function readJsonLocal<T>(relativePath: string): Promise<T | null> {
 }
 
 async function fetchFromCdn<T>(relativePath: string): Promise<T> {
-  const url = `${CDN_BASE}/${relativePath}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`CDN fetch failed: ${response.status} ${url}`);
-  }
+  const response = await fetchCdn(relativePath);
   return (await response.json()) as T;
 }
 
@@ -67,11 +96,7 @@ async function readJsonHybrid<T>(relativePath: string): Promise<T> {
 // ============================================================
 
 async function fetchTextFromCdn(relativePath: string): Promise<string> {
-  const url = `${CDN_BASE}/${relativePath}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`CDN fetch failed: ${response.status} ${url}`);
-  }
+  const response = await fetchCdn(relativePath);
   return response.text();
 }
 
@@ -133,11 +158,7 @@ export async function getWordList(letter: string): Promise<string[]> {
   }
 
   // CDN fallback
-  const url = `${CDN_BASE}/wordlist/${l}.txt`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch wordlist for letter ${l}`);
-  }
+  const response = await fetchCdn(`wordlist/${l}.txt`);
   const text = await response.text();
   return text
     .split(/\r?\n/)
