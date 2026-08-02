@@ -1,4 +1,8 @@
-import { listWordFiles, getWordDetail } from "./reader.js";
+import {
+  getRootWords,
+  getDerivedToRoot,
+  getHyphenationDict,
+} from "./reader.js";
 import type {
   StemMapping,
   HyphenationEntry,
@@ -116,136 +120,96 @@ export function classifySyllablePattern(syllable: string): string {
 }
 
 // ============================================================
-// Batch Extraction Functions
+// Batch Extraction Functions (via pre-computed flat files)
 // ============================================================
 
 /**
  * Extract stem mappings for all words of a given letter.
- * Only includes words that have a rootWord field.
+ * Reads derived_to_root.json + kbbi_vi_hyphenation_dict.json
+ * (1-2 HTTP requests vs. thousands).
  */
 export async function extractStemMappings(
   letter: string
 ): Promise<StemMapping[]> {
-  const words = await listWordFiles(letter);
+  const l = letter.toUpperCase();
+  const [derivedToRoot, hyphenation] = await Promise.all([
+    getDerivedToRoot(),
+    getHyphenationDict(),
+  ]);
+
   const mappings: StemMapping[] = [];
-
-  for (const word of words) {
-    try {
-      const detail = await getWordDetail(word);
-      for (const entry of detail.entries) {
-        if (entry.rootWord) {
-          const kelasKata = entry.makna
-            .flatMap((m) => m.kelasKata)
-            .filter((k) => k.tipe === "kelas_kata")
-            .map((k) => k.kode);
-
-          mappings.push({
-            kata: detail.word,
-            kataDasar: entry.rootWord,
-            pemenggalan: entry.nama,
-            kelasKata: [...new Set(kelasKata)],
-          });
-        }
-      }
-    } catch {
-      // Skip words that fail to load
-    }
+  for (const [kata, kataDasar] of Object.entries(derivedToRoot)) {
+    if (kata.charAt(0).toUpperCase() !== l) continue;
+    mappings.push({
+      kata,
+      kataDasar,
+      pemenggalan: hyphenation[kata] || "",
+    });
   }
-
   return mappings;
 }
 
 /**
  * Extract hyphenation entries for all words of a given letter.
- * Uses the nama field as the source of syllabification.
+ * Reads kbbi_vi_hyphenation_dict.json directly.
  */
 export async function extractHyphenationDic(
   letter: string
 ): Promise<HyphenationEntry[]> {
-  const words = await listWordFiles(letter);
+  const l = letter.toUpperCase();
+  const hyphenation = await getHyphenationDict();
+
   const entries: HyphenationEntry[] = [];
-
-  for (const word of words) {
-    try {
-      const detail = await getWordDetail(word);
-      for (const entry of detail.entries) {
-        if (entry.nama && entry.nama.includes(".")) {
-          entries.push({
-            kata: detail.word,
-            pemenggalan: entry.nama,
-            dicFormat: dotToHyphen(entry.nama),
-          });
-        }
-      }
-    } catch {
-      // Skip words that fail to load
-    }
+  for (const [kata, pemenggalan] of Object.entries(hyphenation)) {
+    if (kata.charAt(0).toUpperCase() !== l) continue;
+    entries.push({
+      kata,
+      pemenggalan,
+      dicFormat: dotToHyphen(pemenggalan),
+    });
   }
-
-  // Deduplicate by kata
-  const seen = new Set<string>();
-  return entries.filter((e) => {
-    if (seen.has(e.kata)) return false;
-    seen.add(e.kata);
-    return true;
-  });
+  return entries;
 }
 
 /**
- * Extract base words (kata dasar) — words without a rootWord field.
+ * Extract base words (kata dasar) for a given letter.
+ * Reads lexicon/root_words.txt.
  */
 export async function extractKataDasar(letter: string): Promise<string[]> {
-  const words = await listWordFiles(letter);
-  const kataDasar: string[] = [];
-
-  for (const word of words) {
-    try {
-      const detail = await getWordDetail(word);
-      const hasRootWord = detail.entries.some((e) => e.rootWord);
-      if (!hasRootWord) {
-        kataDasar.push(detail.word);
-      }
-    } catch {
-      // Skip
-    }
-  }
-
-  return kataDasar;
+  const l = letter.toUpperCase();
+  const rootWords = await getRootWords();
+  return rootWords.filter((w) => w.charAt(0).toUpperCase() === l);
 }
 
 /**
  * Compute syllable pattern statistics for a given letter.
+ * Reads kbbi_vi_hyphenation_dict.json, computes stats from dot-format.
  */
 export async function computeSyllableStats(
   letter: string
 ): Promise<SyllablePatternStats> {
-  const words = await listWordFiles(letter);
+  const l = letter.toUpperCase();
+  const hyphenation = await getHyphenationDict();
+
   const patterns: Record<string, number> = {};
   let totalKata = 0;
   let totalSukuKata = 0;
 
-  for (const word of words) {
-    try {
-      const detail = await getWordDetail(word);
-      for (const entry of detail.entries) {
-        if (entry.nama && entry.nama.includes(".")) {
-          totalKata++;
-          const syllables = extractSyllables(entry.nama);
-          totalSukuKata += syllables.length;
+  for (const [kata, pemenggalan] of Object.entries(hyphenation)) {
+    if (kata.charAt(0).toUpperCase() !== l) continue;
+    const syllables = extractSyllables(pemenggalan);
+    if (syllables.length === 0) continue;
 
-          for (const syl of syllables) {
-            const pattern = classifySyllablePattern(syl);
-            patterns[pattern] = (patterns[pattern] || 0) + 1;
-          }
-        }
-      }
-    } catch {
-      // Skip
+    totalKata++;
+    totalSukuKata += syllables.length;
+    for (const syl of syllables) {
+      const pattern = classifySyllablePattern(syl);
+      patterns[pattern] = (patterns[pattern] || 0) + 1;
     }
   }
 
   return {
-    huruf: letter.toUpperCase(),
+    huruf: l,
     totalKata,
     totalSukuKata,
     patterns,

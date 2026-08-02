@@ -6,6 +6,13 @@ import {
   getBahasa,
   getBidangSubjek,
   getPemenggalanKataRules,
+  getHyphenationPemenggalanRules,
+  getLiangThesis,
+  getPatgen2Tutorial,
+  getRootWords,
+  getDerivedWords,
+  getDerivedToRoot,
+  getHyphenationDict,
 } from "../data/reader.js";
 import { wordIndex } from "../data/index-builder.js";
 
@@ -246,6 +253,121 @@ ${imbuhanSection}`;
             uri: "kbbi://kategori/bidang-subjek",
             mimeType: "application/json" as const,
             text: JSON.stringify(data, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // kbbi://hyphenation/aturan
+  // ──────────────────────────────────────────────────
+  server.resource(
+    "hyphenation-aturan",
+    "kbbi://hyphenation/aturan",
+    {
+      description:
+        "Aturan pemenggalan kata bahasa Indonesia (EYD V) dari hyphenation/pemenggalan_kata.md.",
+      mimeType: "text/markdown",
+    },
+    async () => {
+      const content = await getHyphenationPemenggalanRules();
+      return {
+        contents: [
+          {
+            uri: "kbbi://hyphenation/aturan",
+            mimeType: "text/markdown" as const,
+            text: content,
+          },
+        ],
+      };
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // kbbi://orthos/liang-thesis
+  // ──────────────────────────────────────────────────
+  server.resource(
+    "orthos-liang-thesis",
+    "kbbi://orthos/liang-thesis",
+    {
+      description:
+        "Franklin M. Liang — Word Hyph-a-na-tion by Com-put-er (Liang thesis). Dasar algoritma hyphenation Orthos/patgen.",
+      mimeType: "text/markdown",
+    },
+    async () => {
+      const content = await getLiangThesis();
+      return {
+        contents: [
+          {
+            uri: "kbbi://orthos/liang-thesis",
+            mimeType: "text/markdown" as const,
+            text: content,
+          },
+        ],
+      };
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // kbbi://orthos/patgen2-tutorial
+  // ──────────────────────────────────────────────────
+  server.resource(
+    "orthos-patgen2-tutorial",
+    "kbbi://orthos/patgen2-tutorial",
+    {
+      description:
+        "Tutorial PATGEN2 — program pen-training pattern hyphenation dari plaintext dictionary.",
+      mimeType: "text/markdown",
+    },
+    async () => {
+      const content = await getPatgen2Tutorial();
+      return {
+        contents: [
+          {
+            uri: "kbbi://orthos/patgen2-tutorial",
+            mimeType: "text/markdown" as const,
+            text: content,
+          },
+        ],
+      };
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // kbbi://lexicon/statistik
+  // ──────────────────────────────────────────────────
+  server.resource(
+    "lexicon-statistik",
+    "kbbi://lexicon/statistik",
+    {
+      description:
+        "Statistik lexicon: jumlah root words, derived words, dan hyphenation entries.",
+      mimeType: "application/json",
+    },
+    async () => {
+      const [rootWords, derivedWords, derivedToRoot, hyphenation] =
+        await Promise.all([
+          getRootWords(),
+          getDerivedWords(),
+          getDerivedToRoot(),
+          getHyphenationDict(),
+        ]);
+      return {
+        contents: [
+          {
+            uri: "kbbi://lexicon/statistik",
+            mimeType: "application/json" as const,
+            text: JSON.stringify(
+              {
+                totalRootWords: rootWords.length,
+                totalDerivedWords: derivedWords.length,
+                totalDerivedToRootEntries: Object.keys(derivedToRoot).length,
+                totalHyphenationEntries: Object.keys(hyphenation).length,
+              },
+              null,
+              2
+            ),
           },
         ],
       };

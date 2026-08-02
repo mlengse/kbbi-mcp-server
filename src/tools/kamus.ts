@@ -7,6 +7,10 @@ import {
   getBidangSubjek,
   getLainnya,
   getPeribahasa,
+  getRootWords,
+  getDerivedWords,
+  getDerivedToRoot,
+  getHyphenationDict,
 } from "../data/reader.js";
 import { wordIndex } from "../data/index-builder.js";
 
@@ -266,6 +270,101 @@ export function registerKamusTools(server: McpServer): void {
             {
               type: "text" as const,
               text: `Gagal memuat kategori "${tipe}": ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // cari_kata_dasar_dari_lexicon
+  // ──────────────────────────────────────────────────
+  server.tool(
+    "cari_kata_dasar_dari_lexicon",
+    "Cek status kata dari flat file lexicon (cepat, tanpa iterasi JSON): apakah kata dasar, kata turunan, dan kata dasarnya.",
+    { kata: z.string().describe("Kata yang ingin dicek statusnya") },
+    async ({ kata }) => {
+      try {
+        const [rootWords, derivedToRoot] = await Promise.all([
+          getRootWords(),
+          getDerivedToRoot(),
+        ]);
+        const rootSet = new Set(rootWords);
+        const isRoot = rootSet.has(kata);
+        const kataDasar = derivedToRoot[kata];
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  kata,
+                  isKataDasar: isRoot,
+                  isKataTurunan: Boolean(kataDasar),
+                  kataDasar: kataDasar || null,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Gagal cek kata "${kata}": ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // statistik_lexicon
+  // ──────────────────────────────────────────────────
+  server.tool(
+    "statistik_lexicon",
+    "Statistik lexicon: jumlah root words, derived words, dan hyphenation entries dari flat files.",
+    {},
+    async () => {
+      try {
+        const [rootWords, derivedWords, derivedToRoot, hyphenation] =
+          await Promise.all([
+            getRootWords(),
+            getDerivedWords(),
+            getDerivedToRoot(),
+            getHyphenationDict(),
+          ]);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  totalRootWords: rootWords.length,
+                  totalDerivedWords: derivedWords.length,
+                  totalDerivedToRootEntries: Object.keys(derivedToRoot).length,
+                  totalHyphenationEntries: Object.keys(hyphenation).length,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Gagal menghitung statistik lexicon: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
           isError: true,

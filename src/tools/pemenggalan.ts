@@ -1,6 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getWordDetail } from "../data/reader.js";
+import {
+  getWordDetail,
+  getHyphenationDict,
+  getDicContent,
+} from "../data/reader.js";
 import {
   extractHyphenationDic,
   extractSyllables,
@@ -203,6 +207,191 @@ export function registerPemenggalanTools(server: McpServer): void {
             {
               type: "text" as const,
               text: `Gagal menghitung statistik huruf "${huruf}": ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // cari_pemenggalan
+  // ──────────────────────────────────────────────────
+  server.tool(
+    "cari_pemenggalan",
+    "Cari pemenggalan suku kata dari flat file hyphenation (kbbi_vi_hyphenation_dict.json). Cepat, tanpa iterasi word-details.",
+    { kata: z.string().describe("Kata yang ingin dicari pemenggalannya") },
+    async ({ kata }) => {
+      try {
+        const dict = await getHyphenationDict();
+        const pemenggalan = dict[kata];
+        if (!pemenggalan) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    kata,
+                    ditemukan: false,
+                    catatan:
+                      "Kata tidak ada di hyphenation dict. Coba cari via word-detail (pemenggalan_kata).",
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  kata,
+                  ditemukan: true,
+                  pemenggalan,
+                  dicFormat: dotToHyphen(pemenggalan),
+                  sukuKata: extractSyllables(pemenggalan),
+                  jumlahSukuKata: extractSyllables(pemenggalan).length,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Gagal mencari pemenggalan "${kata}": ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // daftar_dic
+  // ──────────────────────────────────────────────────
+  server.tool(
+    "daftar_dic",
+    "Export seluruh data .dic dari hyphenation/ (id.dic, id_orthos.dic, atau id_words.dic). Bukan per-huruf.",
+    {
+      format: z
+        .enum(["id", "orthos", "words"])
+        .optional()
+        .default("id")
+        .describe("Format .dic yang ingin diekspor"),
+    },
+    async ({ format }) => {
+      try {
+        const content = await getDicContent(format);
+        const lines = content
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  format,
+                  totalEntries: lines.length,
+                  dicContent: content,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Gagal ekspor .dic "${format}": ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────────────
+  // bandingkan_dic
+  // ──────────────────────────────────────────────────
+  server.tool(
+    "bandingkan_dic",
+    "Bandingkan 2 format .dic (id vs id_orthos vs id_words). Menampilkan jumlah line, perbedaan, dan sampel entry yang berbeda.",
+    {
+      format1: z
+        .enum(["id", "orthos", "words"])
+        .describe("Format pertama"),
+      format2: z
+        .enum(["id", "orthos", "words"])
+        .describe("Format kedua"),
+    },
+    async ({ format1, format2 }) => {
+      try {
+        const [content1, content2] = await Promise.all([
+          getDicContent(format1),
+          getDicContent(format2),
+        ]);
+        const lines1 = content1
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        const lines2 = content2
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+
+        const set2 = new Set(lines2);
+        const onlyIn1 = lines1.filter((l) => !set2.has(l));
+        const set1 = new Set(lines1);
+        const onlyIn2 = lines2.filter((l) => !set1.has(l));
+
+        const sample = (arr: string[], n = 5) =>
+          arr.length === 0 ? [] : arr.slice(0, n);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  format1,
+                  format2,
+                  totalEntries1: lines1.length,
+                  totalEntries2: lines2.length,
+                  onlyIn1: onlyIn1.length,
+                  onlyIn2: onlyIn2.length,
+                  sampleOnlyIn1: sample(onlyIn1),
+                  sampleOnlyIn2: sample(onlyIn2),
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Gagal bandingkan .dic "${format1}" vs "${format2}": ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
           isError: true,

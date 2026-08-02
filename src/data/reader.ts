@@ -17,7 +17,7 @@ const __dirname = dirname(__filename);
 const PROJECT_ROOT = resolve(__dirname, "..", "..");
 
 const CDN_BASE =
-  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v2";
+  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v3";
 
 // ============================================================
 // Helper: file exists check
@@ -60,6 +60,43 @@ async function readJsonHybrid<T>(relativePath: string): Promise<T> {
     return local;
   }
   return fetchFromCdn<T>(relativePath);
+}
+
+// ============================================================
+// Helper: read text file (TXT/MD/DIC) with CDN fallback
+// ============================================================
+
+async function fetchTextFromCdn(relativePath: string): Promise<string> {
+  const url = `${CDN_BASE}/${relativePath}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`CDN fetch failed: ${response.status} ${url}`);
+  }
+  return response.text();
+}
+
+/**
+ * Read a plain-text file (TXT/MD/DIC) with hybrid strategy:
+ * 1. Try local file
+ * 2. Fallback to CDN
+ */
+export async function readTextHybrid(relativePath: string): Promise<string> {
+  const fullPath = join(PROJECT_ROOT, relativePath);
+  if (await fileExists(fullPath)) {
+    return readFile(fullPath, "utf-8");
+  }
+  return fetchTextFromCdn(relativePath);
+}
+
+/**
+ * Read a plain-text file line by line, trimming each line.
+ */
+export async function readLinesHybrid(relativePath: string): Promise<string[]> {
+  const content = await readTextHybrid(relativePath);
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 // ============================================================
@@ -176,36 +213,88 @@ export async function getKategori(): Promise<KategoriFile> {
 
 /**
  * Read pemenggalan_kata.md as raw markdown.
+ * Single source of truth: hyphenation/pemenggalan_kata.md.
  */
 export async function getPemenggalanKataRules(): Promise<string> {
-  const filePath = join(PROJECT_ROOT, "pemenggalan_kata.md");
-  if (await fileExists(filePath)) {
-    return readFile(filePath, "utf-8");
-  }
-  const url = `${CDN_BASE}/pemenggalan_kata.md`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Failed to fetch pemenggalan_kata.md");
-  return response.text();
+  return readTextHybrid("hyphenation/pemenggalan_kata.md");
 }
 
 /**
  * Read the Liang thesis markdown.
  */
 export async function getLiangThesis(): Promise<string> {
-  const filePath = join(PROJECT_ROOT, "orthos", "liang_thesis.md");
-  if (await fileExists(filePath)) {
-    return readFile(filePath, "utf-8");
-  }
-  return "";
+  return readTextHybrid("orthos/liang_thesis.md");
 }
 
 /**
  * Read the patgen2 tutorial markdown.
  */
 export async function getPatgen2Tutorial(): Promise<string> {
-  const filePath = join(PROJECT_ROOT, "orthos", "patgen2_tutorial.md");
-  if (await fileExists(filePath)) {
-    return readFile(filePath, "utf-8");
-  }
-  return "";
+  return readTextHybrid("orthos/patgen2_tutorial.md");
+}
+
+// ============================================================
+// Lexicon (pre-computed flat files)
+// ============================================================
+
+/**
+ * Get all root words (kata dasar) from lexicon/root_words.txt.
+ */
+export async function getRootWords(): Promise<string[]> {
+  return readLinesHybrid("lexicon/root_words.txt");
+}
+
+/**
+ * Get all derived words from lexicon/derived_words.txt.
+ */
+export async function getDerivedWords(): Promise<string[]> {
+  return readLinesHybrid("lexicon/derived_words.txt");
+}
+
+/**
+ * Get derived→root mapping from lexicon/derived_to_root.json.
+ */
+export async function getDerivedToRoot(): Promise<Record<string, string>> {
+  return readJsonHybrid<Record<string, string>>("lexicon/derived_to_root.json");
+}
+
+// ============================================================
+// Hyphenation (pre-computed flat files)
+// ============================================================
+
+/**
+ * Get the full hyphenation dictionary: word → dotted pemenggalan.
+ * e.g. { "pintar": "pin.tar" }
+ */
+export async function getHyphenationDict(): Promise<
+  Record<string, string>
+> {
+  return readJsonHybrid<Record<string, string>>(
+    "hyphenation/kbbi_vi_hyphenation_dict.json"
+  );
+}
+
+/**
+ * Get pemenggalan lines from hyphenation/kbbi_pemenggalan.txt.
+ * Format: "kata: pemenggalan" per line.
+ */
+export async function getPemenggalanLines(): Promise<string[]> {
+  return readLinesHybrid("hyphenation/kbbi_pemenggalan.txt");
+}
+
+/**
+ * Get raw content of a .dic file in hyphenation/.
+ */
+export async function getDicContent(
+  format: "id" | "orthos" | "words" = "id"
+): Promise<string> {
+  const file = format === "id" ? "id.dic" : `id_${format}.dic`;
+  return readTextHybrid(`hyphenation/${file}`);
+}
+
+/**
+ * Get hyphenation rules from hyphenation/pemenggalan_kata.md.
+ */
+export async function getHyphenationPemenggalanRules(): Promise<string> {
+  return readTextHybrid("hyphenation/pemenggalan_kata.md");
 }

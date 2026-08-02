@@ -134,3 +134,21 @@ export interface SyllablePatternStats {
   totalSukuKata: number;
   patterns: Record<string, number>;  // e.g. { "KV": 1234, "KVK": 5678 }
 }
+
+// ============================================================
+// Flat Data Types (lexicon/ & hyphenation/ pre-computed files)
+// ============================================================
+
+/** Entry pemenggalan dari flat file (kbbi_vi_hyphenation_dict.json) */
+export interface HyphenationEntryFlat {
+  kata: string;
+  pemenggalan: string;    // dot format: "pin.tar"
+  dicFormat: string;      // hyphen format: "pin-tar"
+}
+
+/** Statistik lexicon */
+export interface LexiconStats {
+  totalRootWords: number;
+  totalDerivedWords: number;
+  totalHyphenationEntries: number;
+}
