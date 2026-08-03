@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fileURLToPath } from "node:url";
 
 import { registerStemmerTools } from "./tools/stemmer.js";
 import { registerPemenggalanTools } from "./tools/pemenggalan.js";
@@ -15,23 +16,28 @@ import { registerPrompts } from "./prompts/index.js";
 // dan pemenggalan kata via Model Context Protocol.
 // ============================================================
 
-const server = new McpServer({
-  name: "kbbi-mcp-server",
-  version: "1.0.0",
-});
+export function createKbbiServer(): McpServer {
+  const server = new McpServer({
+    name: "kbbi-mcp-server",
+    version: "1.0.0",
+  });
 
-// Register all primitives
-registerStemmerTools(server);
-registerPemenggalanTools(server);
-registerKamusTools(server);
-registerResources(server);
-registerPrompts(server);
+  // Register all primitives
+  registerStemmerTools(server);
+  registerPemenggalanTools(server);
+  registerKamusTools(server);
+  registerResources(server);
+  registerPrompts(server);
+
+  return server;
+}
 
 // ============================================================
 // Transport Setup
 // ============================================================
 
 async function main(): Promise<void> {
+  const server = createKbbiServer();
   const mode = process.argv.includes("--http") ? "http" : "stdio";
 
   if (mode === "http") {
@@ -75,7 +81,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Jalankan hanya saat file ini dijalankan langsung (bukan di-import untuk test).
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}

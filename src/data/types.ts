@@ -152,3 +152,11 @@ export interface LexiconStats {
   totalDerivedWords: number;
   totalHyphenationEntries: number;
 }
+
+/** Mapping derived→root + kelas kata (lexicon/derived_to_root_with_kelas.json) */
+export interface DerivedToRootWithKelas {
+  kataDasar: string;
+  kelasKata: string[];
+}
+
+export type DerivedToRootWithKelasMap = Record<string, DerivedToRootWithKelas>;

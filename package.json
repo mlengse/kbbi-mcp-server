@@ -12,7 +12,9 @@
     "build:browser": "node scripts/build-browser.cjs",
     "dev": "tsx src/index.ts",
     "start": "node build/index.js",
-    "inspect": "npx @modelcontextprotocol/inspector build/index.js"
+    "inspect": "npx @modelcontextprotocol/inspector build/index.js",
+    "test": "tsx --test src/__tests__/training-extractor.test.ts src/__tests__/reader.test.ts src/__tests__/extractors.test.ts",
+    "test:integration": "tsx --test src/__tests__/tools.integration.test.ts"
   },
   "keywords": [
     "mcp",

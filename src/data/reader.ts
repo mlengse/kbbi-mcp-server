@@ -8,6 +8,7 @@ import type {
   SubjectDomainFile,
   MiscCategoryFile,
   KategoriFile,
+  DerivedToRootWithKelasMap,
 } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +23,7 @@ const DEFAULT_CDN_BASE =
   "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@main";
 // Stable fallback: pinned tag with all data verified.
 const FALLBACK_CDN_BASE =
-  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v3";
+  "https://cdn.jsdelivr.net/gh/mlengse/kbbi-harvester-cdn@data-v4";
 
 function getCdnBase(): string {
   return process.env.KBBI_CDN_BASE || DEFAULT_CDN_BASE;
@@ -277,6 +278,17 @@ export async function getDerivedWords(): Promise<string[]> {
  */
 export async function getDerivedToRoot(): Promise<Record<string, string>> {
   return readJsonHybrid<Record<string, string>>("lexicon/derived_to_root.json");
+}
+
+/**
+ * Get derived→root mapping + kelas kata from
+ * lexicon/derived_to_root_with_kelas.json.
+ * e.g. { "membantu": { "kataDasar": "bantu", "kelasKata": ["v"] } }
+ */
+export async function getDerivedToRootWithKelas(): Promise<DerivedToRootWithKelasMap> {
+  return readJsonHybrid<DerivedToRootWithKelasMap>(
+    "lexicon/derived_to_root_with_kelas.json"
+  );
 }
 
 // ============================================================

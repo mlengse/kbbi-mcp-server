@@ -17,19 +17,23 @@ Server **tidak** menyimpan 415 MB data KBBI. `src/data/reader.ts` memakai mode h
 
 ### CDN Strategy
 - **Primary:** `@main` (selalu latest) — cocok untuk development.
-- **Fallback otomatis:** jika file 404 di primary, reader log warning lalu mencoba tag stabil **`@data-v3`**.
-- **Override:** set env `KBBI_CDN_BASE` (mis. `@data-v3`) untuk pin ke versi produksi.
+- **Fallback otomatis:** jika file 404 di primary, reader log warning lalu mencoba tag stabil **`@data-v4`**.
+- **Override:** set env `KBBI_CDN_BASE` (mis. `@data-v4`) untuk pin ke versi produksi.
 
 ### Data Source
-Data KBBI di-host di repo terpisah: [kbbi-harvester-cdn](https://github.com/mlengse/kbbi-harvester-cdn) (tag `data-v3`). Repo tersebut berisi:
+Data KBBI di-host di repo terpisah: [kbbi-harvester-cdn](https://github.com/mlengse/kbbi-harvester-cdn) (tag `data-v4`). Repo tersebut berisi:
 - `word-details/` — 112K+ file JSON definisi kata
 - `wordlist/` — daftar kata per huruf (A-Z)
 - `word-category/` — kelas kata, bahasa asal, bidang subjek
 - `word-with-peribahasa/` — kata yang memiliki peribahasa
-- `lexicon/` — root words, derived words, derived-to-root mappings
+- `lexicon/` — root words, derived words, derived-to-root mappings (+ `derived_to_root_with_kelas.json` untuk `kelasKata` di `ekspor_stem_mapping`)
 - `hyphenation/` — data pemenggalan suku kata
 - `schemas/` — JSON schema word-detail
 - `orthos/` — Liang thesis & patgen2 tutorial (markdown)
+
+### Testing
+- **Unit** (`npm test`): pure logic + hybrid reader (stub fetch) + extractors (fixtures lokal) — tanpa network, tanpa dep baru (`node:test` + `tsx`).
+- **Integration** (`npm run test:integration`): boot server via `createKbbiServer()` + `InMemoryTransport`, panggil tools asli via CDN.
 
 ### Local Development
 Jika ingin develop offline tanpa CDN, clone `kbbi-harvester-cdn` sebagai sibling directory:

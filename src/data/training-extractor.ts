@@ -1,6 +1,7 @@
 import {
   getRootWords,
   getDerivedToRoot,
+  getDerivedToRootWithKelas,
   getHyphenationDict,
 } from "./reader.js";
 import type {
@@ -126,16 +127,21 @@ export function classifySyllablePattern(syllable: string): string {
 /**
  * Extract stem mappings for all words of a given letter.
  * Reads derived_to_root.json + kbbi_vi_hyphenation_dict.json
+ * (+ derived_to_root_with_kelas.json untuk kelasKata).
  * (1-2 HTTP requests vs. thousands).
  */
 export async function extractStemMappings(
   letter: string
 ): Promise<StemMapping[]> {
   const l = letter.toUpperCase();
-  const [derivedToRoot, hyphenation] = await Promise.all([
-    getDerivedToRoot(),
-    getHyphenationDict(),
-  ]);
+  const [derivedToRoot, hyphenation, derivedToRootWithKelas] = await Promise.all(
+    [
+      getDerivedToRoot(),
+      getHyphenationDict(),
+      // Backward compatible: bila file tidak ada, lewati kelasKata.
+      getDerivedToRootWithKelas().catch(() => null),
+    ]
+  );
 
   const mappings: StemMapping[] = [];
   for (const [kata, kataDasar] of Object.entries(derivedToRoot)) {
@@ -144,6 +150,7 @@ export async function extractStemMappings(
       kata,
       kataDasar,
       pemenggalan: hyphenation[kata] || "",
+      kelasKata: derivedToRootWithKelas?.[kata]?.kelasKata,
     });
   }
   return mappings;
