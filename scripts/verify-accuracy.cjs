@@ -2,19 +2,38 @@
 /**
  * Verify hyphenation accuracy: patterns/id.cjs vs KBBI data.
  *
- * Reads word-detail JSON files from word-details/*, extracts the 'nama' field
- * (dot-separated syllables from KBBI), runs Hypher, and compares results.
+ * Data comes from the hybrid reader in src/data/reader.ts, never from a local
+ * word-details directory. The repository has never contained that directory,
+ * because it is CDN-only by design (Constitution Principle I); reading it
+ * directly threw ENOENT and made the constitution's accuracy gate unrunnable
+ * for everyone. See specs/001-mcp-client-onboarding/research.md D-008 and
+ * docs/DEFECTS.md entry D-F01.
  *
- * Usage: node scripts/verify-accuracy.cjs
+ * Usage: npm run build && node scripts/verify-accuracy.cjs
  */
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const Hypher = require('hypher');
 const patterns = require('../patterns/id.cjs');
 
 const hypher = new Hypher(patterns);
 
-const WORD_DETAILS_DIR = path.join(__dirname, '..', 'word-details');
+const BUILT_READER = path.join(__dirname, '..', 'build', 'data', 'reader.js');
+
+/**
+ * Load the hybrid reader from the build output.
+ * The reader is ESM, so a .cjs script reaches it through dynamic import.
+ */
+async function loadReader() {
+  if (!fs.existsSync(BUILT_READER)) {
+    throw new Error(
+      `Reader hasil build tidak ditemukan: ${BUILT_READER}\n` +
+        'Jalankan "npm run build" lebih dulu, lalu ulangi perintah ini.'
+    );
+  }
+  return import(pathToFileURL(BUILT_READER).href);
+}
 
 // ============================================================
 // Helpers
@@ -36,43 +55,37 @@ function normalize(s) {
 }
 
 // ============================================================
-// Read all word-detail files
+// Read word data through the hybrid reader
 // ============================================================
 
-function loadAllWords() {
+/**
+ * Load every word that carries a KBBI syllable division.
+ *
+ * The flat hyphenation dictionary is the right source here: it already pairs
+ * each word with its dotted syllable division, so one fetch replaces iterating
+ * 26 directories of word-detail JSON. Data still arrives through the reader,
+ * which means local-first then CDN, and nothing is ever written to disk.
+ */
+async function loadAllWords() {
+  const { getHyphenationDict } = await loadReader();
+  const hyphenation = await getHyphenationDict();
+
   const words = [];
-  const letters = fs.readdirSync(WORD_DETAILS_DIR).filter(f => /^[A-Z]$/.test(f));
+  for (const [word, nama] of Object.entries(hyphenation)) {
+    if (!nama) continue;
 
-  for (const letter of letters) {
-    const dir = path.join(WORD_DETAILS_DIR, letter);
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+    // Skip entries with leading dash (affixes like "-an", "-i")
+    if (nama.startsWith('-')) continue;
 
-    for (const file of files) {
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
-        if (!data.entries || !Array.isArray(data.entries)) continue;
+    // Skip entries with dots that aren't syllable separators
+    // (e.g. abbreviations like "a.k.b.")
+    if (/\.[a-z]\./.test(nama)) continue;
 
-        for (const entry of data.entries) {
-          if (!entry.nama) continue;
-
-          // Skip entries with leading dash (affixes like "-an", "-i")
-          const nama = entry.nama;
-          if (nama.startsWith('-')) continue;
-
-          // Skip entries with dots that aren't syllable separators
-          // (e.g. abbreviations like "a.k.b.")
-          if (/\.[a-z]\./.test(nama)) continue;
-
-          words.push({
-            word: data.word,
-            nama: nama,
-            kbbiHyphens: dotsToHyphens(nama),
-          });
-        }
-      } catch {
-        // Skip malformed JSON files
-      }
-    }
+    words.push({
+      word,
+      nama,
+      kbbiHyphens: dotsToHyphens(nama),
+    });
   }
 
   return words;
@@ -82,9 +95,9 @@ function loadAllWords() {
 // Main
 // ============================================================
 
-function main() {
+async function main() {
   console.log('Loading KBBI word data...');
-  const words = loadAllWords();
+  const words = await loadAllWords();
   console.log(`Loaded ${words.length} words from KBBI.\n`);
 
   let correct = 0;
@@ -173,6 +186,18 @@ function main() {
   if (auditTotal > 0) {
     console.log(`\nAkurasi kata audit: ${auditCorrect}/${auditTotal} (${((auditCorrect / auditTotal) * 100).toFixed(0)}%)`);
   }
+
+  // Exit code doubles as the constitution's quality gate: a figure is reported,
+  // which is what was previously impossible.
+  return accuracy;
 }
 
-main();
+main()
+  .then((accuracy) => {
+    process.exitCode = 0;
+    console.log(`\nGate akurasi terpenuhi: angka ${accuracy}% dilaporkan.`);
+  })
+  .catch((err) => {
+    console.error(`Gagal menjalankan verifikasi akurasi: ${err && err.message ? err.message : err}`);
+    process.exitCode = 1;
+  });

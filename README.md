@@ -2,13 +2,45 @@
 
 **Lapisan: Framework (🏗️).** MCP (Model Context Protocol) server untuk KBBI — tools stemmer, pemenggalan, kamus. Diekstrak dari kode yang sebelumnya menumpang di repo data `kbbi-harvester-cdn` (fork Naandalist).
 
+## Dokumentasi
+
+- [Panduan Instalasi](docs/INSTALL.md) — memasang ke Claude Code, OpenCode, Zed, dan Antigravity
+- [Panduan Penggunaan](docs/USAGE.md) — 20 kapabilitas dan 5 alur siap pakai, dipetakan ke tugas yang layak
+- [Referensi Kapabilitas](docs/capabilities-reference.md) — tabel yang dibangkitkan dari kode
+- [Log Temuan Cacat](docs/DEFECTS.md) — cacat yang terungkap saat onboarding, beserta statusnya
+
 ## Struktur
 ```
 src/       server + tools/ (kamus, pemenggalan, stemmer) + data/ (reader, index-builder)
 config/    contoh konfigurasi klien (claude-desktop, cursor, gemini-cli)
-scripts/   build browser bundle, konversi pola
+scripts/   installer klien, build browser bundle, konversi pola, cek dokumentasi
 patterns/  id.cjs (pola hyphenation untuk browser build)   ← kandidat pindah ke pattern/ nanti
+docs/      INSTALL.md, USAGE.md, capabilities-reference.md, DEFECTS.md
 ```
+
+## Memasang ke klien AI
+
+```bash
+npm install
+npm run build
+node scripts/install-clients.cjs install --client opencode
+```
+
+Installer mendaftarkan server ke empat klien (Claude Code, OpenCode, Zed,
+Antigravity), meminta konfirmasi per klien, dan mencadangkan konfigurasi
+sebelum menulis apa pun. Tambahkan `--dry-run` untuk melihat rencana tanpa
+menulis satu byte pun.
+
+| Perintah | Guna |
+|---|---|
+| `install` | Mendaftarkan server, opsional memasang skill |
+| `status` | Melaporkan status registrasi dan skill per klien |
+| `uninstall` | Melepas entri server dari klien terpilih |
+| `restore` | Mengembalikan konfigurasi ke isi cadangan |
+| `verify` | Menjalankan server dan memanggil satu kapabilitas |
+
+Skill pendukung dipasang ke tiga lokasi: satu salinan bersama di proyek untuk
+Zed dan Antigravity, serta lingkup pengguna untuk Claude Code dan OpenCode.
 
 ## Data — via CDN, TIDAK di-bundle
 Server **tidak** menyimpan 415 MB data KBBI. `src/data/reader.ts` memakai mode hybrid:
@@ -32,8 +64,9 @@ Data KBBI di-host di repo terpisah: [kbbi-harvester-cdn](https://github.com/mlen
 - `orthos/` — Liang thesis & patgen2 tutorial (markdown)
 
 ### Testing
-- **Unit** (`npm test`): pure logic + hybrid reader (stub fetch) + extractors (fixtures lokal) — tanpa network, tanpa dep baru (`node:test` + `tsx`).
-- **Integration** (`npm run test:integration`): boot server via `createKbbiServer()` + `InMemoryTransport`, panggil tools asli via CDN.
+- **Unit** (`npm test`): pure logic + hybrid reader (stub fetch) + extractors (fixtures lokal) + installer (config root sementara) — tanpa network, tanpa dep baru (`node:test` + `tsx`). Berjalan berurutan (`--test-concurrency=1`) karena beberapa berkas tes berbagi direktori fixture.
+- **Integration** (`npm run test:integration`): boot server via `createKbbiServer()` + `InMemoryTransport`, panggil tools asli via CDN, plus kontrak publik dan gerbang akurasi.
+- **Dokumentasi** (`npm run docs:check`): membangkitkan `docs/capabilities-reference.md` dari kode dan memeriksa dokumentasi dua arah, plus gerbang karakter non-Latin.
 
 ### Local Development
 Jika ingin develop offline tanpa CDN, clone `kbbi-harvester-cdn` sebagai sibling directory:
