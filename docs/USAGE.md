@@ -86,9 +86,15 @@ lainnya sesuai tipe yang diminta.
 
 ### `cari_kata_dasar`
 
-Kata dasar dari sebuah kata berimbuhan, memakai field `rootWord` milik KBBI.
-Bila KBBI tidak punya `rootWord`, kapabilitas ini menganggap kata itu sendiri
-adalah kata dasar dan mengatakannya lewat field `catatan`.
+Kata dasar dari sebuah kata berimbuhan. Kata dasarnya ditentukan dari leksikon
+(root_words.txt dan derived_to_root.json), bukan dari artikel word-details,
+sehingga kata turunan yang belum punya artikel KBBI tetap dijawab.
+
+Bila leksikon mencatat kata itu sebagai kata dasar, hasilnya adalah kata itu
+sendiri dan dinyatakan lewat field `catatan`. Kata yang tidak ada di kedua
+leksikon dianggap tidak dikenal dan dikembalikan sebagai error, bukan ditebak
+jadi kata dasar. Field `pemenggalan` diisi dari artikel KBBI bila tersedia,
+dan **boleh kosong** bila artikelnya tidak ada.
 
 - Masukan: `{ "kata": "membantu" }`
 - Keluaran: `{ kata, kataDasar, pemenggalan, catatan? }`
@@ -100,12 +106,14 @@ Versi cepat dari pemeriksaan yang sama, membaca flat file leksikon, bukan
 mengiterasi word-details.
 
 - Masukan: `{ "kata": "membantu" }`
-- Keluaran: `{ kata, status, kataDasar }`
+- Keluaran: `{ kata, isKataDasar, isKataTurunan, kataDasar }`
 - Alternatif massal: `daftar_kata_dasar_kbbi`
 
 ### `daftar_kata_turunan`
 
-Semua kata turunan dari sebuah kata dasar.
+Semua kata turunan dari sebuah kata dasar. KBBI mengulang daftar turunan yang
+sama pada beberapa entri satu artikel, jadi turunan yang sama dihitung satu
+kali; `jumlahTurunan` selalu dihitung dari daftar itu sendiri.
 
 - Masukan: `{ "kataDasar": "pintar" }`
 - Keluaran: `{ kataDasar, jumlahTurunan, kataTurunan: [...] }`
@@ -133,9 +141,12 @@ Statistik leksikon: jumlah root words, derived words, dan entri pemenggalan.
 ### `analisis_imbuhan`
 
 Menguraikan struktur imbuhan: prefiks, sufiks, infiks, dan kata dasarnya.
+Kata dasarnya diambil dari leksikon, jadi kata turunan tanpa artikel KBBI
+tetap teranalisis. Kata yang tidak ada di kedua leksikon dikembalikan sebagai
+error. Field `pemenggalan` boleh kosong bila artikel KBBI tidak tersedia.
 
 - Masukan: `{ "kata": "membantu" }`
-- Keluaran: `{ kata, prefiks, sufiks, infiks, kataDasar }`
+- Keluaran: `{ kata, prefiks, sufiks, pemenggalan }`
 
 Perhatikan batasnya: ini pisah imbuhan secara leksikal, bukan analisis
 linguistik mendalam. Untuk anomali yang perlu ditinjau manusia, pakai alur

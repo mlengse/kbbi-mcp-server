@@ -78,7 +78,7 @@ const NOTES = {
   cari_kata_dasar_dari_lexicon: {
     purpose: 'Cek cepat status satu kata pada leksikon: kata dasar, turunan, atau bukan keduanya.',
     exampleInput: { kata: 'membantu' },
-    expectedOutput: '{ kata, status, kataDasar }',
+    expectedOutput: '{ kata, isKataDasar, isKataTurunan, kataDasar }',
     bulkAlternative: 'daftar_kata_dasar_kbbi',
   },
   statistik_lexicon: {
@@ -88,13 +88,13 @@ const NOTES = {
     bulkAlternative: null,
   },
   cari_kata_dasar: {
-    purpose: 'Menentukan kata dasar dari sebuah kata berimbuhan memakai field rootWord KBBI.',
+    purpose: 'Menentukan kata dasar dari leksikon, lalu melengkapi pemenggalan dari artikel KBBI bila tersedia.',
     exampleInput: { kata: 'membantu' },
     expectedOutput: '{ kata, kataDasar, pemenggalan, catatan? }',
     bulkAlternative: 'daftar_kata_dasar_kbbi',
   },
   daftar_kata_turunan: {
-    purpose: 'Daftar semua kata turunan dari sebuah kata dasar.',
+    purpose: 'Daftar semua kata turunan dari sebuah kata dasar, turunan kembar dihitung satu kali.',
     exampleInput: { kataDasar: 'pintar' },
     expectedOutput: '{ kataDasar, jumlahTurunan, kataTurunan: [...] }',
     bulkAlternative: null,
@@ -106,9 +106,9 @@ const NOTES = {
     bulkAlternative: null,
   },
   analisis_imbuhan: {
-    purpose: 'Menguraikan struktur imbuhan sebuah kata: prefiks, sufiks, infiks, dan kata dasarnya.',
+    purpose: 'Menguraikan struktur imbuhan sebuah kata: prefiks, sufiks, infiks, dan kata dasarnya, dengan kata dasar diambil dari leksikon.',
     exampleInput: { kata: 'membantu' },
-    expectedOutput: '{ kata, prefiks, sufiks, infiks, kataDasar }',
+    expectedOutput: '{ kata, prefiks, sufiks, kataDasar, pemenggalan }',
     bulkAlternative: null,
   },
   daftar_kata_dasar_kbbi: {

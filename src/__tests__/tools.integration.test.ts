@@ -63,6 +63,25 @@ test("ekspor_stem_mapping huruf 'P' → total mappings + kelasKata field", async
   assert.ok("kelasKata" in out.mappings[0]);
 });
 
+test("cari_kata_dasar 'membantu' → kataDasar dari leksikon + pemenggalan dari artikel", async () => {
+  const out = await callTool("cari_kata_dasar", { kata: "membantu" });
+  assert.equal(out.kataDasar, "bantu");
+  assert.equal(out.pemenggalan, "mem.ban.tu");
+});
+
+test("analisis_imbuhan 'membantu' → prefiks mem, kataDasar bantu", async () => {
+  const out = await callTool("analisis_imbuhan", { kata: "membantu" });
+  assert.equal(out.kataDasar, "bantu");
+  assert.equal(out.prefiks, "mem");
+  assert.equal(out.sufiks, "");
+});
+
+test("daftar_kata_turunan tidak memuat duplikat (D-F06)", async () => {
+  const out = await callTool("daftar_kata_turunan", { kataDasar: "balak" });
+  assert.equal(out.jumlahTurunan, out.kataTurunan.length);
+  assert.equal(new Set(out.kataTurunan).size, out.kataTurunan.length);
+});
+
 test("statistik_lexicon → metric global", async () => {
   const out = await callTool("statistik_lexicon", {});
   assert.ok(out.totalRootWords > 1000);

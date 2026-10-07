@@ -9,7 +9,7 @@ import type {
   HyphenationEntry,
   ImbuhanAnalysis,
   SyllablePatternStats,
-  WordDetail,
+  KataStatus,
 } from "./types.js";
 
 // ============================================================
@@ -224,20 +224,47 @@ export async function computeSyllableStats(
 }
 
 /**
- * Analyze affixes for a single word detail.
+ * Look up a word's morphological status in the flat lexicon.
+ *
+ * This is the authority for "what is the root word": `root_words.txt` and
+ * `derived_to_root.json` are two small, reusable files, whereas `word-details`
+ * is a per-word article whose coverage is independent of the lexicon. A word
+ * recorded as derived here may have no article at all, which is why callers
+ * must not gate morphological answers on `getWordDetail`.
+ *
+ * A word in neither file is `unknown`, not a base word.
  */
-export function analyzeWordAffixes(detail: WordDetail): ImbuhanAnalysis | null {
-  for (const entry of detail.entries) {
-    if (entry.rootWord) {
-      const { prefiks, sufiks } = analyzeAffixes(detail.word, entry.rootWord);
-      return {
-        kata: detail.word,
-        kataDasar: entry.rootWord,
-        prefiks,
-        sufiks,
-        pemenggalan: entry.nama,
-      };
-    }
+export async function lookupKataStatus(kata: string): Promise<KataStatus> {
+  const [rootWords, derivedToRoot] = await Promise.all([
+    getRootWords(),
+    getDerivedToRoot(),
+  ]);
+
+  const isRoot = new Set(rootWords).has(kata);
+  const kataDasar = derivedToRoot[kata];
+
+  if (kataDasar !== undefined) {
+    return { status: "derived", kataDasar, isKataDasar: isRoot };
   }
-  return null;
+  if (isRoot) {
+    return { status: "root", kataDasar: null, isKataDasar: true };
+  }
+  return { status: "unknown", kataDasar: null, isKataDasar: false };
+}
+
+/**
+ * Analyze the affixes of a word whose root word is already known.
+ *
+ * The root comes from the lexicon, not from a `word-details` article, so this
+ * works for words that have no dictionary article at all. `pemenggalan` is
+ * passed in because it comes from whichever source the caller had available,
+ * and is legitimately empty when nothing supplies it.
+ */
+export function analyzeAffixesFromRoot(
+  kata: string,
+  kataDasar: string,
+  pemenggalan = ""
+): ImbuhanAnalysis {
+  const { prefiks, sufiks } = analyzeAffixes(kata, kataDasar);
+  return { kata, kataDasar, prefiks, sufiks, pemenggalan };
 }

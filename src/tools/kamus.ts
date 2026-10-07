@@ -13,6 +13,7 @@ import {
   getHyphenationDict,
 } from "../data/reader.js";
 import { wordIndex } from "../data/index-builder.js";
+import { lookupKataStatus } from "../data/training-extractor.js";
 
 /**
  * Register general dictionary tools on the MCP server.
@@ -287,13 +288,7 @@ export function registerKamusTools(server: McpServer): void {
     { kata: z.string().describe("Kata yang ingin dicek statusnya") },
     async ({ kata }) => {
       try {
-        const [rootWords, derivedToRoot] = await Promise.all([
-          getRootWords(),
-          getDerivedToRoot(),
-        ]);
-        const rootSet = new Set(rootWords);
-        const isRoot = rootSet.has(kata);
-        const kataDasar = derivedToRoot[kata];
+        const status = await lookupKataStatus(kata);
 
         return {
           content: [
@@ -302,9 +297,9 @@ export function registerKamusTools(server: McpServer): void {
               text: JSON.stringify(
                 {
                   kata,
-                  isKataDasar: isRoot,
-                  isKataTurunan: Boolean(kataDasar),
-                  kataDasar: kataDasar || null,
+                  isKataDasar: status.isKataDasar,
+                  isKataTurunan: status.status === "derived",
+                  kataDasar: status.kataDasar,
                 },
                 null,
                 2

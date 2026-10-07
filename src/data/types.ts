@@ -160,3 +160,17 @@ export interface DerivedToRootWithKelas {
 }
 
 export type DerivedToRootWithKelasMap = Record<string, DerivedToRootWithKelas>;
+
+/**
+ * Status morfologis satu kata, ditentukan dari leksikon flat file saja.
+ *
+ * Leksikon adalah otoritas untuk pertanyaan "apa kata dasarnya", bukan
+ * `word-details`. Kedua artefak punya cakupan berbeda, dan kata turunan yang
+ * tercatat di `derived_to_root.json` belum tentu punya artikel word-details.
+ * `unknown` berarti kata tidak ada di kedua leksikon, bukan "kemungkinan kata
+ * dasar".
+ */
+export type KataStatus =
+  | { status: "derived"; kataDasar: string; isKataDasar: boolean }
+  | { status: "root"; kataDasar: null; isKataDasar: true }
+  | { status: "unknown"; kataDasar: null; isKataDasar: false };

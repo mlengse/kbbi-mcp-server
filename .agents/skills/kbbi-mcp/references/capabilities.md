@@ -18,17 +18,17 @@ dari `docs/capabilities-reference.md` yang dibangkitkan oleh
 | `contoh_kalimat` | Mengambil contoh penggunaan kata dalam kalimat dari KBBI. | `{"kata":"pintar"}` | `{ kata, contoh: ["..."] }` | - |
 | `peribahasa` | Mencari peribahasa yang mengandung kata tertentu beserta maknanya. | `{"kata":"pintar"}` | `{ kata, jumlah, peribahasa: [{ peribahasa, makna }] }` | - |
 | `daftar_kategori` | Mengambil daftar kategori KBBI: kelas kata, bahasa asal, bidang subjek, atau kategori lainnya. | `{"tipe":"kelas-kata"}` | Objek kategori sesuai tipe yang diminta | - |
-| `cari_kata_dasar_dari_lexicon` | Cek cepat status satu kata pada leksikon: kata dasar, turunan, atau bukan keduanya. | `{"kata":"membantu"}` | `{ kata, status, kataDasar }` | `daftar_kata_dasar_kbbi` |
+| `cari_kata_dasar_dari_lexicon` | Cek cepat status satu kata pada leksikon: kata dasar, turunan, atau bukan keduanya. | `{"kata":"membantu"}` | `{ kata, isKataDasar, isKataTurunan, kataDasar }` | `daftar_kata_dasar_kbbi` |
 | `statistik_lexicon` | Statistik leksikon: jumlah root words, derived words, dan entri pemenggalan. | `{}` | `{ rootWords, derivedWords, hyphenationEntries }` | - |
 
 ## Keluarga stemmer (5 kapabilitas)
 
 | Nama | Untuk tugas apa | Contoh masukan | Bentuk keluaran | Alternatif massal |
 |---|---|---|---|---|
-| `cari_kata_dasar` | Menentukan kata dasar dari sebuah kata berimbuhan memakai field rootWord KBBI. | `{"kata":"membantu"}` | `{ kata, kataDasar, pemenggalan, catatan? }` | `daftar_kata_dasar_kbbi` |
-| `daftar_kata_turunan` | Daftar semua kata turunan dari sebuah kata dasar. | `{"kataDasar":"pintar"}` | `{ kataDasar, jumlahTurunan, kataTurunan: [...] }` | - |
+| `cari_kata_dasar` | Menentukan kata dasar dari leksikon, lalu melengkapi pemenggalan dari artikel KBBI bila tersedia. | `{"kata":"membantu"}` | `{ kata, kataDasar, pemenggalan, catatan? }` | `daftar_kata_dasar_kbbi` |
+| `daftar_kata_turunan` | Daftar semua kata turunan dari sebuah kata dasar, turunan kembar dihitung satu kali. | `{"kataDasar":"pintar"}` | `{ kataDasar, jumlahTurunan, kataTurunan: [...] }` | - |
 | `ekspor_stem_mapping` | Ekspor massal seluruh kata berimbuhan beserta kata dasarnya untuk satu huruf, sebagai data training stemmer. | `{"huruf":"M"}` | `{ huruf, total, mappings: [{ kata, kataDasar, ... }] }` | - |
-| `analisis_imbuhan` | Menguraikan struktur imbuhan sebuah kata: prefiks, sufiks, infiks, dan kata dasarnya. | `{"kata":"membantu"}` | `{ kata, prefiks, sufiks, infiks, kataDasar }` | - |
+| `analisis_imbuhan` | Menguraikan struktur imbuhan sebuah kata: prefiks, sufiks, infiks, dan kata dasarnya, dengan kata dasar diambil dari leksikon. | `{"kata":"membantu"}` | `{ kata, prefiks, sufiks, kataDasar, pemenggalan }` | - |
 | `daftar_kata_dasar_kbbi` | Daftar kata dasar KBBI, yaitu entri tanpa rootWord, untuk satu huruf. | `{"huruf":"M"}` | `{ huruf, jumlah, kataDasar: [...] }` | - |
 
 ## Keluarga pemenggalan (7 kapabilitas)

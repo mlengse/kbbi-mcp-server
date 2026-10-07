@@ -129,3 +129,72 @@ direbutan direktori fixture lebih sering terjadi.
 
 **Catatan**: temuan ini ditemukan oleh eksekusi pertamanya sendiri. Gerbang
 dokumentasi yang tidak bisa melihat alur sama saja tidak ada gerbang.
+---
+
+## D-F05: kapabilitas stemmer menganggap `word-details` sebagai satu-satunya otoritas
+
+| Kolom | Isi |
+|---|---|
+| id | D-F05 |
+| target | `src/tools/stemmer.ts` (`cari_kata_dasar`, `analisis_imbuhan`) |
+| steps | 1. Panggil `cari_kata_dasar` dengan `kata: "saksikan"`. 2. Panggil `analisis_imbuhan` dengan `kata: "saksikan"`. 3. Bandingkan dengan `cari_kata_dasar_dari_lexicon` untuk kata yang sama. |
+| expected | Ketiganya menjawab `kataDasar: "saksi"`. |
+| actual | Dua kapabilitas pertama gagal dengan `CDN fetch failed: 404 .../word-details/S/saksikan.json` dan `isError: true`, padahal `saksikan` tercatat di `lexicon/derived_to_root.json` sebagai turunan dari `saksi` dan kapabilitas ketiga menjawabnya dengan benar. `word-details` dan leksikon adalah artefak terpisah dengan cakupan berbeda: `saksikan` tidak punya artikel, tidak punya baris wordlist, dan tidak punya entri pemenggalan. Karena dua kapabilitas itu mengambil seluruh keputusan dari artikel, keduanya mewarisi celah cakupan artikel. |
+| status | fixed |
+| regressionTest | `src/__tests__/stemmer-lexicon.test.ts` |
+| rejectionReason | - |
+| docUpdated | true |
+
+**Akar masalah**: `getWordDetail(kata)` adalah pernyataan pertama di dalam
+`try` pada kedua kapabilitas itu, jadi 404 terjadi sebelum logika kata dasar
+semuanya berjalan. `Entry.rootWord` juga opsional di `src/data/types.ts`, jadi
+even sebuah artikel yang berhasil diambil pun tidak menjamin ada kata dasar;
+ketiadaan `rootWord` lalu ditafsirkan jadi "kemungkinan kata dasar".erver
+sudah punya jawaban yang benar dalam bentuk
+`cari_kata_dasar_dari_lexicon`, tetapi itu kapabilitas terpisah, bukan
+implementasi bersama, sehingga kedua kapilitas stemmer tidak pernah mendapat
+cakupan leksikon.
+
+**Perbaikan**: leksikon jadi otoritas. `lookupKataStatus(kata)` di
+`src/data/training-extractor.ts` membaca `root_words.txt` dan
+`derived_to_root.json` lewat `src/data/reader.ts` sesuai Prinsip II, dan
+mengembalikan status `derived`, `root`, atau `unknown`. Kedua kapabilitas
+memakai hasil itu untuk keputusan, lalu memanggil `word-details` hanya untuk
+melengkapi `pemenggalan` lewat `enrichPemenggalan`, yang selalu melempar
+`""` bila artikel tidak ada. `analyzeAffixesFromRoot(kata, kataDasar,
+pemenggalan)` menggantikan `analyzeWordAffixes`, yang tidak lagi punya pemanggil
+setelah perubahan ini dan karena itu dihapus.
+
+**Catatan**: `cari_kata` tetap bergantung penuh pada `word-details`, karena
+memang tidak ada yang bisa dijawab tanpa artikel. `analisis_imbuhan` untuk
+`saksikan` menghasilkan `prefiks: ""` dan `sufiks: "kan"`: heuristik sufiks
+diperhatikan lebih dulu dan sisa "saksi" sama persis dengan akar, jadi tidak
+ada prefiks yang terdeteksi. Ini hasil heuristik yang diamati, bukan asumsi.
+
+---
+
+## D-F06: `daftar_kata_turunan` menghitung turunan kembar berkali-kali
+
+| Kolom | Isi |
+|---|---|
+| id | D-F06 |
+| target | `src/tools/stemmer.ts` (`daftar_kata_turunan`) |
+| steps | 1. Panggil `daftar_kata_turunkan` dengan `kataDasar: "balak"`. 2. Baca artikel `word-details/B/balak.json`. |
+| expected | `jumlahTurunan: 4` atas empat kata turunan yang berbeda. |
+| actual | `jumlahTurunan: 12`, dengan empat kata yang sama diulang tiga kali berturut-turut. Artikel itu berisi tujuh entri; entri 1, 2, dan 3 (makna "belang", "wilayah klan", "balok") membawa `terkait.kataTurunan` yang identik, sedangkan entri 4 sampai 7 kosong. 3 x 4 = 12. |
+| status | fixed |
+| regressionTest | `src/__tests__/stemmer-lexicon.test.ts` |
+| rejectionReason | - |
+| docUpdated | true |
+
+**Akar masalah**: KBBI mengelompokkan kata turunan di bawah makna tertentu,
+sehingga satu artikel mengulang daftar turunan yang sama pada beberapa entri.
+`daftar_kata_turunan` menempelkan satu daftar per entri tanpa menggabungkan duplikat
+(`turunan.push(...entry.terkait.kataTurunan)`), lalu melaporkan panjang daftar
+mentah itu sebagai `jumlahTurunan`. Isi informasinya benar, hanya kelipatannya
+dan jumlah yang salah; karena jumlah dihitung dari daftar yang sama, cacat ini
+merusak data training secara senyap, bukan sekadar berisik.
+
+**Perbaikan**: deduplikasi eksplisit yang mempertahankan urutan kemunculan
+pertama, dan `jumlahTurunan` dihitung dari daftar itu sendiri sehingga jumlah
+dan daftar tidak bisa berbeda lagi.
