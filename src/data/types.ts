@@ -16,6 +16,8 @@ export interface Entry {
   rootWord?: string;       // Kata dasar (hanya pada kata berimbuhan), e.g. "bantu"
   makna: Makna[];
   terkait: Terkait;
+  etimologi?: Etimologi;   // Catatan etimologi tingkat entri (opsional di hulu)
+  jenis?: string;          // Jenis entri, mis. "peribahasa", "idiom" (opsional di hulu)
 }
 
 export interface Makna {
@@ -42,10 +44,21 @@ export interface Terkait {
   peribahasa: string[];
   idiom: string[];
   peribahasa_dan_makna?: PeribahasaDanMakna[];
+  idiom_dan_makna?: IdiomDanMakna[];   // Idiom beserta maknanya (opsional di hulu)
 }
 
 export interface PeribahasaDanMakna {
   peribahasa: string;
+  makna: string;
+}
+
+export interface Etimologi {
+  text: string;
+  languages: string[];
+}
+
+export interface IdiomDanMakna {
+  idiom: string;
   makna: string;
 }
 

@@ -63,6 +63,11 @@ Data KBBI di-host di repo terpisah: [kbbi-harvester-cdn](https://github.com/mlen
 - `schemas/` — JSON schema word-detail
 - `orthos/` — Liang thesis & patgen2 tutorial (markdown)
 
+### Kontrak `word-detail` & revisi data
+Kontrak data yang dideklarasikan server ada di `src/data/types.ts`. Selain field lama, setiap entri kini juga mendeklarasikan field **opsional** `etimologi` (`{ text, languages }`), `jenis` (mis. `peribahasa`, `idiom`), dan `terkait.idiom_dan_makna` (`{ idiom, makna }[]`) — semuanya opsional karena hulu menandainya opsional. Himpunan field ini dikunci oleh `src/__tests__/word-detail-contract.test.ts`: mengubah tipe yang dideklarasikan menggagalkan `npm run typecheck` sampai kontrak tercatat diperbarui dengan sengaja.
+
+**Menentukan revisi data yang sedang dibaca.** Untuk menjawab apakah sumber data aktif sudah memuat koreksi hulu tertentu (mis. perbaikan `manaka` → `makna` dan penambahan blok `terkait`), jalankan prosedur di [specs/002-align-word-detail-schema/contracts/data-revision-probe.md](specs/002-align-word-detail-schema/contracts/data-revision-probe.md). Ringkasnya: tentukan basis aktif (lokal → `KBBI_CDN_BASE` → `@main` → `@data-v4`), lalu periksa `word-details/H/habis.json` (adanya `terkait`?) dan/atau `word-details/L/lebih.json` (tidak adanya string `manaka`?).
+
 ### Testing
 - **Unit** (`npm test`): pure logic + hybrid reader (stub fetch) + extractors (fixtures lokal) + installer (config root sementara) — tanpa network, tanpa dep baru (`node:test` + `tsx`). Berjalan berurutan (`--test-concurrency=1`) karena beberapa berkas tes berbagi direktori fixture.
 - **Integration** (`npm run test:integration`): boot server via `createKbbiServer()` + `InMemoryTransport`, panggil tools asli via CDN, plus kontrak publik dan gerbang akurasi.

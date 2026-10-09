@@ -17,7 +17,7 @@
     "installer": "node scripts/install-clients.cjs",
     "installer:verify": "node scripts/install-clients.cjs verify",
     "docs:check": "node scripts/check-capabilities.cjs",
-    "test": "tsx --test --test-concurrency=1 src/__tests__/training-extractor.test.ts src/__tests__/reader.test.ts src/__tests__/extractors.test.ts src/__tests__/stemmer-lexicon.test.ts src/__tests__/installer-registry.test.ts src/__tests__/installer-config-io.test.ts src/__tests__/installer-skill.test.ts src/__tests__/installer-docs.test.ts",
+    "test": "tsx --test --test-concurrency=1 src/__tests__/training-extractor.test.ts src/__tests__/reader.test.ts src/__tests__/word-detail-contract.test.ts src/__tests__/extractors.test.ts src/__tests__/stemmer-lexicon.test.ts src/__tests__/installer-registry.test.ts src/__tests__/installer-config-io.test.ts src/__tests__/installer-skill.test.ts src/__tests__/installer-docs.test.ts",
     "test:integration": "tsx --test --test-concurrency=1 src/__tests__/tools.integration.test.ts src/__tests__/installer-contracts.test.ts src/__tests__/verify-accuracy.test.ts"
   },
   "keywords": [
