@@ -256,39 +256,92 @@ export async function getPatgen2Tutorial(): Promise<string> {
 }
 
 // ============================================================
+// Lexicon & Hyphenation In-Memory Caches
+// Optimization: Cache static lexicon & hyphenation dictionaries in memory via Promise
+// memoization to eliminate repeated network fetches / JSON parsing during lookups.
+// ============================================================
+
+let rootWordsCache: Promise<string[]> | null = null;
+let derivedWordsCache: Promise<string[]> | null = null;
+let derivedToRootCache: Promise<Record<string, string>> | null = null;
+let derivedToRootWithKelasCache: Promise<DerivedToRootWithKelasMap> | null = null;
+let hyphenationDictCache: Promise<Record<string, string>> | null = null;
+
+/**
+ * Clear the in-memory caches. Mainly used for testing or cache invalidation.
+ */
+export function clearLexiconCache(): void {
+  rootWordsCache = null;
+  derivedWordsCache = null;
+  derivedToRootCache = null;
+  derivedToRootWithKelasCache = null;
+  hyphenationDictCache = null;
+}
+
+// ============================================================
 // Lexicon (pre-computed flat files)
 // ============================================================
 
 /**
  * Get all root words (kata dasar) from lexicon/root_words.txt.
+ * Uses in-memory promise caching for instant subsequent reads.
  */
 export async function getRootWords(): Promise<string[]> {
-  return readLinesHybrid("lexicon/root_words.txt");
+  if (!rootWordsCache) {
+    rootWordsCache = readLinesHybrid("lexicon/root_words.txt").catch((err) => {
+      rootWordsCache = null;
+      throw err;
+    });
+  }
+  return rootWordsCache;
 }
 
 /**
  * Get all derived words from lexicon/derived_words.txt.
+ * Uses in-memory promise caching for instant subsequent reads.
  */
 export async function getDerivedWords(): Promise<string[]> {
-  return readLinesHybrid("lexicon/derived_words.txt");
+  if (!derivedWordsCache) {
+    derivedWordsCache = readLinesHybrid("lexicon/derived_words.txt").catch((err) => {
+      derivedWordsCache = null;
+      throw err;
+    });
+  }
+  return derivedWordsCache;
 }
 
 /**
  * Get derived→root mapping from lexicon/derived_to_root.json.
+ * Uses in-memory promise caching for instant subsequent reads.
  */
 export async function getDerivedToRoot(): Promise<Record<string, string>> {
-  return readJsonHybrid<Record<string, string>>("lexicon/derived_to_root.json");
+  if (!derivedToRootCache) {
+    derivedToRootCache = readJsonHybrid<Record<string, string>>(
+      "lexicon/derived_to_root.json"
+    ).catch((err) => {
+      derivedToRootCache = null;
+      throw err;
+    });
+  }
+  return derivedToRootCache;
 }
 
 /**
  * Get derived→root mapping + kelas kata from
  * lexicon/derived_to_root_with_kelas.json.
  * e.g. { "membantu": { "kataDasar": "bantu", "kelasKata": ["v"] } }
+ * Uses in-memory promise caching for instant subsequent reads.
  */
 export async function getDerivedToRootWithKelas(): Promise<DerivedToRootWithKelasMap> {
-  return readJsonHybrid<DerivedToRootWithKelasMap>(
-    "lexicon/derived_to_root_with_kelas.json"
-  );
+  if (!derivedToRootWithKelasCache) {
+    derivedToRootWithKelasCache = readJsonHybrid<DerivedToRootWithKelasMap>(
+      "lexicon/derived_to_root_with_kelas.json"
+    ).catch((err) => {
+      derivedToRootWithKelasCache = null;
+      throw err;
+    });
+  }
+  return derivedToRootWithKelasCache;
 }
 
 // ============================================================
@@ -298,13 +351,20 @@ export async function getDerivedToRootWithKelas(): Promise<DerivedToRootWithKela
 /**
  * Get the full hyphenation dictionary: word → dotted pemenggalan.
  * e.g. { "pintar": "pin.tar" }
+ * Uses in-memory promise caching for instant subsequent reads.
  */
 export async function getHyphenationDict(): Promise<
   Record<string, string>
 > {
-  return readJsonHybrid<Record<string, string>>(
-    "hyphenation/kbbi_vi_hyphenation_dict.json"
-  );
+  if (!hyphenationDictCache) {
+    hyphenationDictCache = readJsonHybrid<Record<string, string>>(
+      "hyphenation/kbbi_vi_hyphenation_dict.json"
+    ).catch((err) => {
+      hyphenationDictCache = null;
+      throw err;
+    });
+  }
+  return hyphenationDictCache;
 }
 
 /**
