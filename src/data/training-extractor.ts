@@ -1,5 +1,6 @@
 import {
   getRootWords,
+  getRootWordsSet,
   getDerivedToRoot,
   getDerivedToRootWithKelas,
   getHyphenationDict,
@@ -235,12 +236,12 @@ export async function computeSyllableStats(
  * A word in neither file is `unknown`, not a base word.
  */
 export async function lookupKataStatus(kata: string): Promise<KataStatus> {
-  const [rootWords, derivedToRoot] = await Promise.all([
-    getRootWords(),
+  const [rootWordsSet, derivedToRoot] = await Promise.all([
+    getRootWordsSet(),
     getDerivedToRoot(),
   ]);
 
-  const isRoot = new Set(rootWords).has(kata);
+  const isRoot = rootWordsSet.has(kata);
   const kataDasar = derivedToRoot[kata];
 
   if (kataDasar !== undefined) {
