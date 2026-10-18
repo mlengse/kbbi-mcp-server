@@ -6,6 +6,7 @@ import {
   readTextHybrid,
   getRootWords,
   getDerivedToRoot,
+  clearLexiconCache,
 } from "../data/reader.js";
 
 const FIXTURE_DIR = join(process.cwd(), "lexicon");
@@ -13,6 +14,7 @@ const FIXTURE_FILE = join(FIXTURE_DIR, "root_words.txt");
 
 afterEach(async () => {
   delete process.env.KBBI_CDN_BASE;
+  clearLexiconCache();
   await rm(FIXTURE_DIR, { recursive: true, force: true });
 });
 
