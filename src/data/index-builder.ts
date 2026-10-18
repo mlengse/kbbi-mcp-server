@@ -27,21 +27,27 @@ class WordIndex {
 
   /**
    * Build the full index from all letters.
-   * This loads ~1MB of wordlist data into memory.
+   * Optimization: Fetch all 26 letter wordlists in parallel using Promise.all
+   * instead of sequentially awaiting each letter.
    */
   async buildFullIndex(): Promise<string[]> {
     if (this.fullIndex !== null) {
       return this.fullIndex;
     }
 
+    const results = await Promise.all(
+      LETTERS.map(async (letter) => {
+        try {
+          return await this.loadLetter(letter);
+        } catch {
+          return [];
+        }
+      })
+    );
+
     const allWords: string[] = [];
-    for (const letter of LETTERS) {
-      try {
-        const words = await this.loadLetter(letter);
-        allWords.push(...words);
-      } catch {
-        // Skip letters that fail to load
-      }
+    for (const words of results) {
+      allWords.push(...words);
     }
     this.fullIndex = allWords.sort();
     return this.fullIndex;
@@ -76,19 +82,28 @@ class WordIndex {
 
   /**
    * Get statistics across all letters.
+   * Optimization: Fetch counts for all 26 letters in parallel using Promise.all.
    */
   async getStats(): Promise<Record<string, number>> {
     const stats: Record<string, number> = {};
     let total = 0;
-    for (const letter of LETTERS) {
-      try {
-        const count = await this.getCount(letter);
-        stats[letter] = count;
-        total += count;
-      } catch {
-        stats[letter] = 0;
-      }
+
+    const letterCounts = await Promise.all(
+      LETTERS.map(async (letter) => {
+        try {
+          const count = await this.getCount(letter);
+          return { letter, count };
+        } catch {
+          return { letter, count: 0 };
+        }
+      })
+    );
+
+    for (const { letter, count } of letterCounts) {
+      stats[letter] = count;
+      total += count;
     }
+
     stats["TOTAL"] = total;
     return stats;
   }
