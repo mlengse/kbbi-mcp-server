@@ -262,6 +262,7 @@ export async function getPatgen2Tutorial(): Promise<string> {
 // ============================================================
 
 let rootWordsCache: Promise<string[]> | null = null;
+let rootWordsSetCache: Promise<Set<string>> | null = null;
 let derivedWordsCache: Promise<string[]> | null = null;
 let derivedToRootCache: Promise<Record<string, string>> | null = null;
 let derivedToRootWithKelasCache: Promise<DerivedToRootWithKelasMap> | null = null;
@@ -272,6 +273,7 @@ let hyphenationDictCache: Promise<Record<string, string>> | null = null;
  */
 export function clearLexiconCache(): void {
   rootWordsCache = null;
+  rootWordsSetCache = null;
   derivedWordsCache = null;
   derivedToRootCache = null;
   derivedToRootWithKelasCache = null;
@@ -294,6 +296,23 @@ export async function getRootWords(): Promise<string[]> {
     });
   }
   return rootWordsCache;
+}
+
+/**
+ * Get all root words as a Set<string>.
+ * Optimization: Reuses a memoized Promise<Set<string>> so O(1) set lookups don't
+ * re-allocate a 11,000+ item Set on every query.
+ */
+export async function getRootWordsSet(): Promise<Set<string>> {
+  if (!rootWordsSetCache) {
+    rootWordsSetCache = getRootWords()
+      .then((words) => new Set(words))
+      .catch((err) => {
+        rootWordsSetCache = null;
+        throw err;
+      });
+  }
+  return rootWordsSetCache;
 }
 
 /**
