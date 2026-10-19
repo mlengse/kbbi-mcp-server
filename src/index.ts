@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import http from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { fileURLToPath } from "node:url";
 
 import { registerStemmerTools } from "./tools/stemmer.js";
@@ -32,6 +34,38 @@ export function createKbbiServer(): McpServer {
   return server;
 }
 
+export function createHttpServer(server: McpServer, authToken?: string): http.Server {
+  return http.createServer(async (req, res) => {
+    // Only handle /mcp endpoint
+    if (req.url !== "/mcp") {
+      res.writeHead(404);
+      res.end("Not Found. Use /mcp endpoint.");
+      return;
+    }
+
+    // Check authentication if authToken is provided
+    if (authToken) {
+      const authHeader = req.headers["authorization"];
+      if (!authHeader || authHeader !== `Bearer ${authToken}`) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized" }));
+        return;
+      }
+    }
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless
+    });
+
+    res.on("close", () => {
+      transport.close();
+    });
+
+    await server.connect(transport);
+    await transport.handleRequest(req, res);
+  });
+}
+
 // ============================================================
 // Transport Setup
 // ============================================================
@@ -42,32 +76,10 @@ async function main(): Promise<void> {
 
   if (mode === "http") {
     // HTTP transport for remote access
-    const { StreamableHTTPServerTransport } = await import(
-      "@modelcontextprotocol/sdk/server/streamableHttp.js"
-    );
-    const http = await import("node:http");
-
     const PORT = parseInt(process.env.PORT || "3000", 10);
+    const authToken = process.env.AUTH_TOKEN || process.env.MCP_AUTH_TOKEN;
 
-    const httpServer = http.createServer(async (req, res) => {
-      // Only handle /mcp endpoint
-      if (req.url !== "/mcp") {
-        res.writeHead(404);
-        res.end("Not Found. Use /mcp endpoint.");
-        return;
-      }
-
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // stateless
-      });
-
-      res.on("close", () => {
-        transport.close();
-      });
-
-      await server.connect(transport);
-      await transport.handleRequest(req, res);
-    });
+    const httpServer = createHttpServer(server, authToken);
 
     httpServer.listen(PORT, () => {
       console.error(`KBBI MCP Server (HTTP) listening on port ${PORT}`);
