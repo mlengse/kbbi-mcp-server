@@ -45,11 +45,7 @@ class WordIndex {
       })
     );
 
-    const allWords: string[] = [];
-    for (const words of results) {
-      allWords.push(...words);
-    }
-    this.fullIndex = allWords.sort();
+    this.fullIndex = results.flat().sort();
     return this.fullIndex;
   }
 
