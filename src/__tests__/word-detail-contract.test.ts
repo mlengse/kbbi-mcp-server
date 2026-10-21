@@ -9,11 +9,16 @@
  * 2. Toleransi — artikel yang membawa field baru (`etimologi`, `jenis`,
  *    `idiom_dan_makna`) maupun yang tidak membawanya sama-sama diterima, dan
  *    field opsional bernilai null diperlakukan sebagai tidak ada.
+ * 3. Resource `kbbi://kata/{word}` — menguji baik respons sukses maupun respons
+ *    error saat getWordDetail melempar galat (misal CDN 404).
  *
  * Semua fetch di-stub (Prinsip IV): tes ini tidak boleh menyentuh CDN.
  */
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createKbbiServer } from "../index.js";
 import type { Entry, Terkait, WordDetail } from "../data/types.js";
 import { getWordDetail } from "../data/reader.js";
 
@@ -91,12 +96,15 @@ const TANPA_FIELD_BARU: WordDetail = {
   ],
 };
 
+const originalFetch = globalThis.fetch;
+
 function stubFetch(detail: unknown): void {
   globalThis.fetch = async () =>
     new Response(JSON.stringify(detail), { status: 200 });
 }
 
 afterEach(() => {
+  globalThis.fetch = originalFetch;
   delete process.env.KBBI_CDN_BASE;
 });
 
@@ -148,4 +156,56 @@ test("field opsional bernilai null diperlakukan sebagai tidak ada", async () => 
   // Konsumen memperlakukan `null` sebagai "tidak ada" memakai `?? undefined`.
   assert.equal(entry.etimologi ?? undefined, undefined);
   assert.equal(entry.jenis ?? undefined, undefined);
+});
+
+// ============================================================
+// Resource kbbi://kata/{word}
+// ============================================================
+
+test("resource kbbi://kata/{word}: sukses membaca detail kata", async () => {
+  stubFetch(DENGAN_FIELD_BARU);
+  const server = createKbbiServer();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "resource-test", version: "1.0.0" });
+  await Promise.all([
+    client.connect(clientTransport),
+    server.connect(serverTransport),
+  ]);
+
+  try {
+    const res = await client.readResource({ uri: "kbbi://kata/ujicoba" });
+    assert.equal(res.contents.length, 1);
+    const content = res.contents[0];
+    assert.equal(content.mimeType, "application/json");
+    assert.ok("text" in content);
+    const parsed = JSON.parse(content.text);
+    assert.equal(parsed.word, "ujicoba");
+    assert.equal(parsed.entries.length, 1);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("resource kbbi://kata/{word}: penanganan error ketika getWordDetail melempar error", async () => {
+  globalThis.fetch = async () => new Response("", { status: 404 });
+  const server = createKbbiServer();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "resource-test", version: "1.0.0" });
+  await Promise.all([
+    client.connect(clientTransport),
+    server.connect(serverTransport),
+  ]);
+
+  try {
+    const res = await client.readResource({ uri: "kbbi://kata/katatidakada123" });
+    assert.equal(res.contents.length, 1);
+    const content = res.contents[0];
+    assert.equal(content.mimeType, "text/plain");
+    assert.ok("text" in content);
+    assert.equal(content.text, 'Kata "katatidakada123" tidak ditemukan.');
+  } finally {
+    await client.close();
+    await server.close();
+  }
 });
