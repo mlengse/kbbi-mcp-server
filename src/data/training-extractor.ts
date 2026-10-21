@@ -134,7 +134,8 @@ export function classifySyllablePattern(syllable: string): string {
 export async function extractStemMappings(
   letter: string
 ): Promise<StemMapping[]> {
-  const l = letter.toUpperCase();
+  const lUpper = letter.toUpperCase();
+  const lLower = letter.toLowerCase();
   const [derivedToRoot, hyphenation, derivedToRootWithKelas] = await Promise.all(
     [
       getDerivedToRoot(),
@@ -145,11 +146,12 @@ export async function extractStemMappings(
   );
 
   const mappings: StemMapping[] = [];
-  for (const [kata, kataDasar] of Object.entries(derivedToRoot)) {
-    if (kata.charAt(0).toUpperCase() !== l) continue;
+  for (const kata in derivedToRoot) {
+    const firstChar = kata.charAt(0);
+    if (firstChar !== lLower && firstChar !== lUpper) continue;
     mappings.push({
       kata,
-      kataDasar,
+      kataDasar: derivedToRoot[kata],
       pemenggalan: hyphenation[kata] || "",
       kelasKata: derivedToRootWithKelas?.[kata]?.kelasKata,
     });
@@ -164,12 +166,15 @@ export async function extractStemMappings(
 export async function extractHyphenationDic(
   letter: string
 ): Promise<HyphenationEntry[]> {
-  const l = letter.toUpperCase();
+  const lUpper = letter.toUpperCase();
+  const lLower = letter.toLowerCase();
   const hyphenation = await getHyphenationDict();
 
   const entries: HyphenationEntry[] = [];
-  for (const [kata, pemenggalan] of Object.entries(hyphenation)) {
-    if (kata.charAt(0).toUpperCase() !== l) continue;
+  for (const kata in hyphenation) {
+    const firstChar = kata.charAt(0);
+    if (firstChar !== lLower && firstChar !== lUpper) continue;
+    const pemenggalan = hyphenation[kata];
     entries.push({
       kata,
       pemenggalan,
@@ -184,9 +189,13 @@ export async function extractHyphenationDic(
  * Reads lexicon/root_words.txt.
  */
 export async function extractKataDasar(letter: string): Promise<string[]> {
-  const l = letter.toUpperCase();
+  const lUpper = letter.toUpperCase();
+  const lLower = letter.toLowerCase();
   const rootWords = await getRootWords();
-  return rootWords.filter((w) => w.charAt(0).toUpperCase() === l);
+  return rootWords.filter((w) => {
+    const firstChar = w.charAt(0);
+    return firstChar === lLower || firstChar === lUpper;
+  });
 }
 
 /**
@@ -196,15 +205,18 @@ export async function extractKataDasar(letter: string): Promise<string[]> {
 export async function computeSyllableStats(
   letter: string
 ): Promise<SyllablePatternStats> {
-  const l = letter.toUpperCase();
+  const lUpper = letter.toUpperCase();
+  const lLower = letter.toLowerCase();
   const hyphenation = await getHyphenationDict();
 
   const patterns: Record<string, number> = {};
   let totalKata = 0;
   let totalSukuKata = 0;
 
-  for (const [kata, pemenggalan] of Object.entries(hyphenation)) {
-    if (kata.charAt(0).toUpperCase() !== l) continue;
+  for (const kata in hyphenation) {
+    const firstChar = kata.charAt(0);
+    if (firstChar !== lLower && firstChar !== lUpper) continue;
+    const pemenggalan = hyphenation[kata];
     const syllables = extractSyllables(pemenggalan);
     if (syllables.length === 0) continue;
 
@@ -217,7 +229,7 @@ export async function computeSyllableStats(
   }
 
   return {
-    huruf: l,
+    huruf: lUpper,
     totalKata,
     totalSukuKata,
     patterns,
