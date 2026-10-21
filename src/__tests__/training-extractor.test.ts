@@ -1,11 +1,25 @@
-import { test } from "node:test";
+import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   analyzeAffixes,
   dotToHyphen,
   extractSyllables,
   classifySyllablePattern,
+  extractKataDasar,
 } from "../data/training-extractor.js";
+import { clearLexiconCache } from "../data/reader.js";
+
+let originalFetch: typeof globalThis.fetch;
+
+beforeEach(() => {
+  originalFetch = globalThis.fetch;
+  clearLexiconCache();
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  clearLexiconCache();
+});
 
 test("analyzeAffixes: membantu → prefiks mem, tanpa sufiks", () => {
   assert.deepEqual(analyzeAffixes("membantu", "bantu"), {
@@ -54,4 +68,39 @@ test("classifySyllablePattern: K/V pattern", () => {
   assert.equal(classifySyllablePattern("ba"), "KV");
   assert.equal(classifySyllablePattern("ai"), "VV");
   assert.equal(classifySyllablePattern("kha"), "KKV");
+});
+
+test("extractKataDasar: filters root words by letter (case-insensitive letter parameter)", async () => {
+  globalThis.fetch = async () =>
+    new Response("abang\nabar\nbantu\nCacing\n", { status: 200 });
+
+  const aWordsLower = await extractKataDasar("a");
+  assert.deepEqual(aWordsLower, ["abang", "abar"]);
+
+  clearLexiconCache();
+  const aWordsUpper = await extractKataDasar("A");
+  assert.deepEqual(aWordsUpper, ["abang", "abar"]);
+
+  clearLexiconCache();
+  const bWords = await extractKataDasar("b");
+  assert.deepEqual(bWords, ["bantu"]);
+
+  clearLexiconCache();
+  const cWords = await extractKataDasar("C");
+  assert.deepEqual(cWords, ["Cacing"]);
+});
+
+test("extractKataDasar: returns empty array when no matching words exist for a letter", async () => {
+  globalThis.fetch = async () =>
+    new Response("abang\nabar\nbantu\n", { status: 200 });
+
+  const zWords = await extractKataDasar("Z");
+  assert.deepEqual(zWords, []);
+});
+
+test("extractKataDasar: returns empty array when root words list is empty", async () => {
+  globalThis.fetch = async () => new Response("", { status: 200 });
+
+  const aWords = await extractKataDasar("A");
+  assert.deepEqual(aWords, []);
 });
