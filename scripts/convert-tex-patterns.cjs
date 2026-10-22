@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const texPath = path.join(__dirname, '..', '..', 'bahasa_indonesia', 'pemenggalan', 'patgen-train-colab', 'hyph-id-eydv.tex');
-const outputPath = path.join(__dirname, '..', 'patterns', 'id.cjs');
+const outputPath = path.join(__dirname, '..', 'pattern', 'id.cjs');
 
 // Read TeX file
 const tex = fs.readFileSync(texPath, 'utf-8');

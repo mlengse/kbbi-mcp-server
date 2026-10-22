@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify hyphenation accuracy: patterns/id.cjs vs KBBI data.
+ * Verify hyphenation accuracy: pattern/id.cjs vs KBBI data.
  *
  * Data comes from the hybrid reader in src/data/reader.ts, never from a local
  * word-details directory. The repository has never contained that directory,
@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const Hypher = require('hypher');
-const patterns = require('../patterns/id.cjs');
+const patterns = require('../pattern/id.cjs');
 
 const hypher = new Hypher(patterns);
 
