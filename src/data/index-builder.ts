@@ -1,4 +1,5 @@
 import { getWordList } from "./reader.js";
+import { binaryPrefixSearch } from "./search-utils.js";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -6,7 +7,7 @@ const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
  * In-memory word index for fast prefix searching.
  * Built lazily — only loads letters as they are requested.
  */
-class WordIndex {
+export class WordIndex {
   private letterCache: Map<string, string[]> = new Map();
   private fullIndex: string[] | null = null;
 
@@ -103,41 +104,6 @@ class WordIndex {
     stats["TOTAL"] = total;
     return stats;
   }
-}
-
-/**
- * Binary search for prefix matches in a sorted array.
- */
-function binaryPrefixSearch(
-  sortedWords: string[],
-  prefix: string,
-  limit: number
-): string[] {
-  if (sortedWords.length === 0) return [];
-
-  // Find the insertion point for the prefix
-  let lo = 0;
-  let hi = sortedWords.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (sortedWords[mid] < prefix) {
-      lo = mid + 1;
-    } else {
-      hi = mid;
-    }
-  }
-
-  // Collect matches from the insertion point
-  const results: string[] = [];
-  for (let i = lo; i < sortedWords.length && results.length < limit; i++) {
-    if (sortedWords[i].startsWith(prefix)) {
-      results.push(sortedWords[i]);
-    } else {
-      break; // No more matches since array is sorted
-    }
-  }
-
-  return results;
 }
 
 // ============================================================
