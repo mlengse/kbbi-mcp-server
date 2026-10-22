@@ -3,6 +3,6 @@
  * Exports Hypher engine and Indonesian patterns as a global IIFE.
  */
 var Hypher = require('hypher');
-var patterns = require('../patterns/id.cjs');
+var patterns = require('../pattern/id.cjs');
 
 module.exports = { Hypher: Hypher, patterns: patterns };

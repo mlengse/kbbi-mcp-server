@@ -14,7 +14,7 @@
 src/       server + tools/ (kamus, pemenggalan, stemmer) + data/ (reader, index-builder)
 config/    contoh konfigurasi klien (claude-desktop, cursor, gemini-cli)
 scripts/   installer klien, build browser bundle, konversi pola, cek dokumentasi
-patterns/  id.cjs (pola hyphenation untuk browser build)   ← kandidat pindah ke pattern/ nanti
+pattern/   id.cjs (pola hyphenation untuk browser build)
 docs/      INSTALL.md, USAGE.md, capabilities-reference.md, DEFECTS.md
 ```
 
@@ -81,5 +81,5 @@ git clone https://github.com/mlengse/kbbi-harvester-cdn.git
 `reader.ts` otomatis membaca file lokal jika path-nya ada, lalu fallback ke CDN.
 
 ### TODO
-- [ ] `patterns/id.cjs` dipertimbangkan pindah ke lapisan `pattern/`.
+- [x] `patterns/id.cjs` dipertimbangkan pindah ke lapisan `pattern/` (sudah dipindah ke `pattern/id.cjs`).
 
