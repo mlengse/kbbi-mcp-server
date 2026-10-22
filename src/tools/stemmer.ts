@@ -32,13 +32,7 @@ async function enrichPemenggalan(kata: string): Promise<string> {
   }
 }
 
-/**
- * Register stemmer training tools on the MCP server.
- */
-export function registerStemmerTools(server: McpServer): void {
-  // ──────────────────────────────────────────────────
-  // cari_kata_dasar
-  // ──────────────────────────────────────────────────
+function registerCariKataDasar(server: McpServer): void {
   server.tool(
     "cari_kata_dasar",
     "Dari kata berimbuhan, cari kata dasarnya. Contoh: 'membantu' → 'bantu'. Menentukan kata dasar dari leksikon (root_words.txt + derived_to_root.json), lalu melengkapi pemenggalan dari KBBI bila tersedia. Kata yang tidak ada di leksikon akan dikembalikan sebagai error.",
@@ -111,10 +105,9 @@ export function registerStemmerTools(server: McpServer): void {
       }
     }
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // daftar_kata_turunan
-  // ──────────────────────────────────────────────────
+function registerDaftarKataTurunan(server: McpServer): void {
   server.tool(
     "daftar_kata_turunan",
     "Daftar semua kata turunan dari kata dasar tertentu. Contoh: 'pintar' → ['kepintaran', 'memintarkan', 'terpintar']. Turunan yang sama disebut pada beberapa entri KBBI dihitung satu kali.",
@@ -164,10 +157,9 @@ export function registerStemmerTools(server: McpServer): void {
       }
     }
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // ekspor_stem_mapping
-  // ──────────────────────────────────────────────────
+function registerEksporStemMapping(server: McpServer): void {
   server.tool(
     "ekspor_stem_mapping",
     "Bulk export: semua kata berimbuhan + rootWord untuk 1 huruf. Untuk training data stemmer. Contoh: huruf 'M' → [{kata: 'membantu', kataDasar: 'bantu', ...}, ...]",
@@ -209,10 +201,9 @@ export function registerStemmerTools(server: McpServer): void {
       }
     }
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // analisis_imbuhan
-  // ──────────────────────────────────────────────────
+function registerAnalisisImbuhan(server: McpServer): void {
   server.tool(
     "analisis_imbuhan",
     "Analisis struktur imbuhan kata. Contoh: 'membantu' → prefiks 'mem', sufiks '', kataDasar 'bantu'. Kata dasarnya ditentukan dari leksikon, jadi kata turunan tanpa artikel KBBI tetap teranalisis. Kata yang tidak ada di leksikon akan dikembalikan sebagai error.",
@@ -280,10 +271,9 @@ export function registerStemmerTools(server: McpServer): void {
       }
     }
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // daftar_kata_dasar_kbbi
-  // ──────────────────────────────────────────────────
+function registerDaftarKataDasarKbbi(server: McpServer): void {
   server.tool(
     "daftar_kata_dasar_kbbi",
     "Daftar kata dasar KBBI (yang tidak punya rootWord) per huruf. Berguna untuk cross-reference dengan kamus stemmer.",
@@ -325,4 +315,15 @@ export function registerStemmerTools(server: McpServer): void {
       }
     }
   );
+}
+
+/**
+ * Register stemmer training tools on the MCP server.
+ */
+export function registerStemmerTools(server: McpServer): void {
+  registerCariKataDasar(server);
+  registerDaftarKataTurunan(server);
+  registerEksporStemMapping(server);
+  registerAnalisisImbuhan(server);
+  registerDaftarKataDasarKbbi(server);
 }
