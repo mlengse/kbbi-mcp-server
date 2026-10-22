@@ -18,8 +18,15 @@ import {
 async function enrichPemenggalan(kata: string): Promise<string> {
   try {
     const detail = await getWordDetail(kata);
-    const entry = detail.entries.find((e) => e.rootWord) ?? detail.entries[0];
-    return entry?.nama || "";
+    const entries = detail.entries;
+    const len = entries.length;
+    for (let i = 0; i < len; i++) {
+      const entry = entries[i];
+      if (entry.rootWord) {
+        return entry.nama || "";
+      }
+    }
+    return entries[0]?.nama || "";
   } catch {
     return "";
   }
