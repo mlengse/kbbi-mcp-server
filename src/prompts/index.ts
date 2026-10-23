@@ -6,9 +6,14 @@ import { z } from "zod";
  * Prompts are reusable workflows that guide AI agents through specific tasks.
  */
 export function registerPrompts(server: McpServer): void {
-  // ──────────────────────────────────────────────────
-  // siapkan_data_training_pemenggalan
-  // ──────────────────────────────────────────────────
+  registerSiapkanDataTrainingPemenggalanPrompt(server);
+  registerSiapkanDataTrainingStemmerPrompt(server);
+  registerAnalisisEdgeCasesPrompt(server);
+  registerValidasiEnginePrompt(server);
+  registerBandingkanKataPrompt(server);
+}
+
+function registerSiapkanDataTrainingPemenggalanPrompt(server: McpServer): void {
   server.prompt(
     "siapkan_data_training_pemenggalan",
     "Workflow untuk menyiapkan data training pemenggalan kata. Export .dic file, validasi format, dan generate statistik pola suku kata.",
@@ -38,10 +43,9 @@ Format output .dic harus kompatibel dengan Orthos/patgen (hyphen-separated sylla
       ],
     })
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // siapkan_data_training_stemmer
-  // ──────────────────────────────────────────────────
+function registerSiapkanDataTrainingStemmerPrompt(server: McpServer): void {
   server.prompt(
     "siapkan_data_training_stemmer",
     "Workflow untuk menyiapkan data training stemmer. Export stem mapping, identifikasi kata dasar, dan analisis distribusi imbuhan.",
@@ -70,10 +74,9 @@ Format output .dic harus kompatibel dengan Orthos/patgen (hyphen-separated sylla
       ],
     })
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // analisis_edge_cases
-  // ──────────────────────────────────────────────────
+function registerAnalisisEdgeCasesPrompt(server: McpServer): void {
   server.prompt(
     "analisis_edge_cases",
     "Identifikasi kata-kata yang sulit di-stem atau dipenggal. Contoh: 'berani' (ber- bukan prefiks), 'terang' (ter- bukan prefiks).",
@@ -111,10 +114,9 @@ Format output .dic harus kompatibel dengan Orthos/patgen (hyphen-separated sylla
       ],
     })
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // validasi_engine
-  // ──────────────────────────────────────────────────
+function registerValidasiEnginePrompt(server: McpServer): void {
   server.prompt(
     "validasi_engine",
     "Workflow validasi akurasi engine stemmer atau pemenggalan. Mengambil sampel kata, menguji engine, dan menghitung akurasi.",
@@ -152,10 +154,9 @@ Format output .dic harus kompatibel dengan Orthos/patgen (hyphen-separated sylla
       ],
     })
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // bandingkan_kata
-  // ──────────────────────────────────────────────────
+function registerBandingkanKataPrompt(server: McpServer): void {
   server.prompt(
     "bandingkan_kata",
     "Bandingkan morfologi dan pemenggalan dua kata. Berguna untuk analisis pola dan debugging.",
