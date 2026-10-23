@@ -15,10 +15,7 @@ import {
 import { wordIndex } from "../data/index-builder.js";
 import { lookupKataStatus } from "../data/training-extractor.js";
 
-/**
- * Register general dictionary tools on the MCP server.
- */
-export function registerKamusTools(server: McpServer): void {
+function registerCariKataTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // cari_kata
   // ──────────────────────────────────────────────────
@@ -50,7 +47,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerCariKataAwalanTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // cari_kata_awalan
   // ──────────────────────────────────────────────────
@@ -97,7 +96,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerKelasKataTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // kelas_kata
   // ──────────────────────────────────────────────────
@@ -143,7 +144,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerContohKalimatTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // contoh_kalimat
   // ──────────────────────────────────────────────────
@@ -187,7 +190,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerPeribahasaTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // peribahasa
   // ──────────────────────────────────────────────────
@@ -226,7 +231,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerDaftarKategoriTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // daftar_kategori
   // ──────────────────────────────────────────────────
@@ -278,7 +285,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerCariKataDasarDariLexiconTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // cari_kata_dasar_dari_lexicon
   // ──────────────────────────────────────────────────
@@ -320,7 +329,9 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerStatistikLexiconTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // statistik_lexicon
   // ──────────────────────────────────────────────────
@@ -367,4 +378,18 @@ export function registerKamusTools(server: McpServer): void {
       }
     }
   );
+}
+
+/**
+ * Register general dictionary tools on the MCP server.
+ */
+export function registerKamusTools(server: McpServer): void {
+  registerCariKataTool(server);
+  registerCariKataAwalanTool(server);
+  registerKelasKataTool(server);
+  registerContohKalimatTool(server);
+  registerPeribahasaTool(server);
+  registerDaftarKategoriTool(server);
+  registerCariKataDasarDariLexiconTool(server);
+  registerStatistikLexiconTool(server);
 }
