@@ -12,10 +12,7 @@ import {
   computeSyllableStats,
 } from "../data/training-extractor.js";
 
-/**
- * Register pemenggalan (hyphenation) training tools on the MCP server.
- */
-export function registerPemenggalanTools(server: McpServer): void {
+function registerPemenggalanKataTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // pemenggalan_kata
   // ──────────────────────────────────────────────────
@@ -63,7 +60,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerEksporTrainingDicTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // ekspor_training_dic
   // ──────────────────────────────────────────────────
@@ -110,7 +109,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerValidasiPemenggalanTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // validasi_pemenggalan
   // ──────────────────────────────────────────────────
@@ -162,7 +163,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerStatistikPolaSukuTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // statistik_pola_suku
   // ──────────────────────────────────────────────────
@@ -214,7 +217,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerCariPemenggalanTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // cari_pemenggalan
   // ──────────────────────────────────────────────────
@@ -277,7 +282,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerDaftarDicTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // daftar_dic
   // ──────────────────────────────────────────────────
@@ -327,7 +334,9 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
 
+function registerBandingkanDicTool(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // bandingkan_dic
   // ──────────────────────────────────────────────────
@@ -399,4 +408,17 @@ export function registerPemenggalanTools(server: McpServer): void {
       }
     }
   );
+}
+
+/**
+ * Register pemenggalan (hyphenation) training tools on the MCP server.
+ */
+export function registerPemenggalanTools(server: McpServer): void {
+  registerPemenggalanKataTool(server);
+  registerEksporTrainingDicTool(server);
+  registerValidasiPemenggalanTool(server);
+  registerStatistikPolaSukuTool(server);
+  registerCariPemenggalanTool(server);
+  registerDaftarDicTool(server);
+  registerBandingkanDicTool(server);
 }
