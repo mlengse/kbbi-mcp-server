@@ -40,7 +40,7 @@ Format entri mengikuti `DefectFinding` pada `data-model.md`:
 
 **Dampak**: gerbang akurasi pada bagian kualitas Konstitusi, yang mensyaratkan
 `scripts/verify-accuracy.cjs` tidak menunjukkan regresi, tidak bisa dijalankan
-sama sekali oleh pengembang mana pun. Witten pada `TODO(ACCURACY_GATE)`.
+sama sekali oleh pengembang mana pun. Ditulis pada `TODO(ACCURACY_GATE)`.
 
 **Akar masalah**: akses data langsung ke berkas lokal, melanggar Konstitusi
 Prinsip II yang mewajibkan seluruh akses data lewat `src/data/reader.ts`.
@@ -149,7 +149,7 @@ dokumentasi yang tidak bisa melihat alur sama saja tidak ada gerbang.
 `try` pada kedua kapabilitas itu, jadi 404 terjadi sebelum logika kata dasar
 semuanya berjalan. `Entry.rootWord` juga opsional di `src/data/types.ts`, jadi
 even sebuah artikel yang berhasil diambil pun tidak menjamin ada kata dasar;
-ketiadaan `rootWord` lalu ditafsirkan jadi "kemungkinan kata dasar".erver
+ketiadaan `rootWord` lalu ditafsirkan jadi "kemungkinan kata dasar". Server
 sudah punya jawaban yang benar dalam bentuk
 `cari_kata_dasar_dari_lexicon`, tetapi itu kapabilitas terpisah, bukan
 implementasi bersama, sehingga kedua kapilitas stemmer tidak pernah mendapat
