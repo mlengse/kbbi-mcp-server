@@ -21,6 +21,17 @@ import { wordIndex } from "../data/index-builder.js";
  * Resources are read-only data contexts available to AI agents.
  */
 export function registerResources(server: McpServer): void {
+  registerAturanResources(server);
+  registerKategoriResources(server);
+  registerOrthosResources(server);
+  registerStatistikResources(server);
+  registerKataResources(server);
+}
+
+/**
+ * Register rules and guidelines resources.
+ */
+function registerAturanResources(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // kbbi://aturan/pemenggalan-kata
   // ──────────────────────────────────────────────────
@@ -150,40 +161,35 @@ ${imbuhanSection}`;
   );
 
   // ──────────────────────────────────────────────────
-  // kbbi://statistik
+  // kbbi://hyphenation/aturan
   // ──────────────────────────────────────────────────
   server.resource(
-    "statistik",
-    "kbbi://statistik",
+    "hyphenation-aturan",
+    "kbbi://hyphenation/aturan",
     {
       description:
-        "Statistik database KBBI: total kata per huruf, distribusi data.",
-      mimeType: "application/json",
+        "Aturan pemenggalan kata bahasa Indonesia (EYD V) dari hyphenation/pemenggalan_kata.md.",
+      mimeType: "text/markdown",
     },
     async () => {
-      const stats = await wordIndex.getStats();
+      const content = await getHyphenationPemenggalanRules();
       return {
         contents: [
           {
-            uri: "kbbi://statistik",
-            mimeType: "application/json" as const,
-            text: JSON.stringify(
-              {
-                deskripsi: "Statistik database KBBI MCP Server",
-                totalEntri: stats["TOTAL"] || 0,
-                distribusiPerHuruf: Object.fromEntries(
-                  Object.entries(stats).filter(([k]) => k !== "TOTAL")
-                ),
-              },
-              null,
-              2
-            ),
+            uri: "kbbi://hyphenation/aturan",
+            mimeType: "text/markdown" as const,
+            text: content,
           },
         ],
       };
     }
   );
+}
 
+/**
+ * Register category reference resources.
+ */
+function registerKategoriResources(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // kbbi://kategori/kelas-kata
   // ──────────────────────────────────────────────────
@@ -258,32 +264,12 @@ ${imbuhanSection}`;
       };
     }
   );
+}
 
-  // ──────────────────────────────────────────────────
-  // kbbi://hyphenation/aturan
-  // ──────────────────────────────────────────────────
-  server.resource(
-    "hyphenation-aturan",
-    "kbbi://hyphenation/aturan",
-    {
-      description:
-        "Aturan pemenggalan kata bahasa Indonesia (EYD V) dari hyphenation/pemenggalan_kata.md.",
-      mimeType: "text/markdown",
-    },
-    async () => {
-      const content = await getHyphenationPemenggalanRules();
-      return {
-        contents: [
-          {
-            uri: "kbbi://hyphenation/aturan",
-            mimeType: "text/markdown" as const,
-            text: content,
-          },
-        ],
-      };
-    }
-  );
-
+/**
+ * Register Orthos/patgen educational & technical reference resources.
+ */
+function registerOrthosResources(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // kbbi://orthos/liang-thesis
   // ──────────────────────────────────────────────────
@@ -333,6 +319,46 @@ ${imbuhanSection}`;
       };
     }
   );
+}
+
+/**
+ * Register database and lexicon statistics resources.
+ */
+function registerStatistikResources(server: McpServer): void {
+  // ──────────────────────────────────────────────────
+  // kbbi://statistik
+  // ──────────────────────────────────────────────────
+  server.resource(
+    "statistik",
+    "kbbi://statistik",
+    {
+      description:
+        "Statistik database KBBI: total kata per huruf, distribusi data.",
+      mimeType: "application/json",
+    },
+    async () => {
+      const stats = await wordIndex.getStats();
+      return {
+        contents: [
+          {
+            uri: "kbbi://statistik",
+            mimeType: "application/json" as const,
+            text: JSON.stringify(
+              {
+                deskripsi: "Statistik database KBBI MCP Server",
+                totalEntri: stats["TOTAL"] || 0,
+                distribusiPerHuruf: Object.fromEntries(
+                  Object.entries(stats).filter(([k]) => k !== "TOTAL")
+                ),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    }
+  );
 
   // ──────────────────────────────────────────────────
   // kbbi://lexicon/statistik
@@ -373,7 +399,12 @@ ${imbuhanSection}`;
       };
     }
   );
+}
 
+/**
+ * Register word detail template resource.
+ */
+function registerKataResources(server: McpServer): void {
   // ──────────────────────────────────────────────────
   // kbbi://kata/{word} — Resource Template
   // ──────────────────────────────────────────────────
