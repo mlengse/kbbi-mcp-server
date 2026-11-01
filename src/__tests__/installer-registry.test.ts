@@ -112,8 +112,8 @@ test("rootKey dan entryShape sesuai bentuk yang terverifikasi", () => {
   assert.equal(client("antigravity").entryShape, "claude-style");
 });
 
-test("OpenCode mencatat konflik skema v2 (D-003)", () => {
-  assert.ok(client("opencode").knownConflicts.includes("opencode-v2-shape"));
+test("OpenCode tidak lagi menolak skema v2 (D-003)", () => {
+  assert.equal(client("opencode").knownConflicts.includes("opencode-v2-shape"), false);
 });
 
 test("Antigravity mencatat konflik workspace yang diabaikan CLI (D-005)", () => {

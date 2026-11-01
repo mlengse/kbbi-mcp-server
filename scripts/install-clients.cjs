@@ -193,12 +193,17 @@ async function installCommand(options) {
     try {
       resolved = configIo.resolveConfigPath(record, options.scope, repoRoot);
       doc = configIo.readConfigDocument(resolved.path);
-      entry = configIo.serializeEntry(record, {
-        name: configIo.SERVER_NAME,
-        command: server.command,
-        args: server.args,
-        env: {},
-      });
+      // Bentuk entri mengikuti skema dokumen: v1 dipertahankan, selain itu v2.
+      entry = configIo.serializeEntry(
+        record,
+        {
+          name: configIo.SERVER_NAME,
+          command: server.command,
+          args: server.args,
+          env: {},
+        },
+        { opencodeShape: configIo.openCodeEntryShape(doc.parsed) }
+      );
     } catch (err) {
       rows.push({
         clientId: record.id,
@@ -359,10 +364,7 @@ function statusCommand(options) {
     } else if (doc.parseError) {
       parts.push('rusak');
     } else {
-      const servers =
-        doc.parsed && doc.parsed[record.rootKey] && typeof doc.parsed[record.rootKey] === 'object'
-          ? doc.parsed[record.rootKey]
-          : {};
+      const servers = configIo.serverContainer(doc.parsed, record).servers;
       parts.push(
         configIo.SERVER_NAME in servers
           ? `server terdaftar di ${resolved.path}`

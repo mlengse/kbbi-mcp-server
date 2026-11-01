@@ -132,12 +132,13 @@ node scripts/install-clients.cjs install --client opencode
 ```json
 {
   "mcp": {
-    "kbbi": {
-      "type": "local",
-      "command": ["/path/absolut/ke/node", "/path/absolut/ke/repo/build/index.js"],
-      "enabled": true,
-      "environment": {},
-      "timeout": 60000
+    "servers": {
+      "kbbi": {
+        "type": "local",
+        "command": ["/path/absolut/ke/node", "/path/absolut/ke/repo/build/index.js"],
+        "environment": {},
+        "timeout": { "startup": 60000, "catalog": 60000 }
+      }
     }
   }
 }
@@ -150,7 +151,9 @@ node scripts/install-clients.cjs install --client opencode
    panggilan pertama ke server ini mengambil data kamus dari jaringan. Lima
    detik lebih pendek dari satu putaran CDN, sehingga panggilan pertama akan
    gagal dengan pesan waktu tunggu habis, lalu berhasil pada panggilan
-   berikutnya. Installer menuliskan 60000 milidetik.
+   berikutnya. Installer menulis objek `timeout` dengan `startup` dan `catalog`
+   60000 milidetik. `execution` sengaja tidak ditulis supaya batas bawaan host
+   tidak ikut turun.
 
 ### Verifikasi
 
@@ -170,12 +173,12 @@ node scripts/install-clients.cjs restore --client opencode
 
 ### Yang mudah salah
 
-- **Dua skema tidak kompatibel sedang sama-sama terdokumentasi.** Skema v1
-  menaruh entri langsung di bawah `mcp` dan memakai `enabled`. Skema v2
-  bersarang di `mcp.servers` dan memakai `disabled`. Installer menulis v1 dan
-  mendeteksi v2 saat dijalankan. Bila konfigurasi Anda v2, installer **menolak
-  menulis** dan memberi tahu, alih-alih menghasilkan entri yang rusak diam-diam.
-  Naikkan atau turunkan versi OpenCode supaya format dan skema cocok.
+- **Dua skema hidup berdampingan.** Skema v1 menaruh entri langsung di bawah
+  `mcp` dan memakai `enabled` serta `timeout` berupa angka. Skema v2 (yang
+  dipakai OpenCode saat ini) bersarang di `mcp.servers` dan memakai objek
+  `timeout`. Installer mendeteksi skema berkas saat dijalankan: berkas v1
+  dipertahankan sebagai v1, berkas baru atau v2 ditulis sebagai v2, sehingga
+  tidak ada entri yang rusak diam-diam.
 - Konfigurasi di `~/.config/opencode/opencode.json` bersifat global dan
   memengaruhi seluruh proyek. `opencode.json` di dalam proyek bersifat per
   proyek, dan `--scope project` menuliskannya di sana.Ingat bahwa berkas
@@ -334,9 +337,9 @@ perbaikan, dan membiarkan berkas aslinya utuh.
 | Gejala | Penyebab | Solusi |
 |---|---|---|
 | Installer keluar dengan kode 2 | Node.js tidak ada di PATH, atau build belum tersedia | `node --version`, lalu `npm run build` |
-| Installer menolak menulis ke OpenCode | Konfigurasi memakai skema v2 | Periksa `~/.config/opencode/opencode.json`; samakan versi OpenCode dengan skema yang ditulis installer |
+| Entri OpenCode tidak terbaca | Entri ditulis manual dengan skema yang tidak cocok | Hapus entri itu, lalu jalankan `install --client opencode`; installer mengikuti skema berkas |
 | Server tidak muncul di klien | Klien belum dimulai ulang | Mulai ulang klien, lalu `status` |
-| Panggilan pertama gagal dengan waktu tunggu habis di OpenCode | Batas bawaan lima detik lebih pendek dari satu putaran CDN | Periksa `timeout` pada entri; installer menulis 60000 |
+| Panggilan pertama gagal dengan waktu tunggu habis di OpenCode | Batas bawaan lima detik lebih pendek dari satu putaran CDN | Periksa objek `timeout` pada entri; installer menulis `startup`/`catalog` 60000 |
 | Semua panggilan gagal | Jaringan menuju CDN tidak terjangkau | Uji koneksi. Instalasi tetap benar; koneksi yang belum terverifikasi |
 | `kata tidak ditemukan` padahal kata ada | Salah ejaan, atau kata itu tidak ada di KBBI | Coba `cari_kata_awalan` dengan awalan kata tersebut |
 | Konfigurasi klien rusak | Berkas pernah disunting manual | `restore`, atau perbaiki manual. Installer tidak akan menimpa berkas rusak |

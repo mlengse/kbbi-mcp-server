@@ -16,6 +16,7 @@ import {
   readConfigDocument,
   serializeEntry,
   detectOpenCodeShape,
+  openCodeEntryShape,
   mergeServerEntry,
   removeServerEntry,
   writeConfigDocument,
@@ -35,6 +36,13 @@ const SERVER = {
   args: ["/abs/path/ke/repo/build/index.js"],
   env: {},
 };
+
+/** Entri OpenCode dengan bentuk yang mengikuti skema dokumen tujuan. */
+function opencodeEntry(parsed: unknown) {
+  return serializeEntry(client("opencode"), SERVER, {
+    opencodeShape: openCodeEntryShape(parsed),
+  });
+}
 
 let tmpRoot: string;
 let previousRoot: string | undefined;
@@ -125,16 +133,30 @@ test("opencode-style menulis command sebagai array dan kunci environment", () =>
   assert.equal(entry.type, "local");
   assert.ok(Array.isArray(entry.command), "command harus array yang memuat executable");
   assert.deepEqual(entry.command, [SERVER.command, SERVER.args[0]]);
-  assert.equal(entry.enabled, true);
   assert.ok(entry.environment, "kunci environment harus ada pada OpenCode");
   assert.equal(entry.environment.constructor, Object);
   assert.equal(entry.env, undefined, "kunci env tidak boleh muncul pada OpenCode");
 });
 
-test("timeout OpenCode melebihi satu putaran CDN, yaitu lebih dari 5000 ms (FR-033)", () => {
+test("entri OpenCode v2 tidak memakai enabled maupun disabled (skema saat ini)", () => {
+  const entry = serializeEntry(client("opencode"), SERVER, { opencodeShape: "v2" });
+  assert.equal(entry.enabled, undefined, "enabled tidak dikenal skema v2");
+  assert.equal(entry.disabled, undefined, "server aktif cukup dengan tidak menulis disabled");
+});
+
+test("entri OpenCode v1 tetap memakai enabled dan timeout angka (kompatibilitas)", () => {
+  const entry = serializeEntry(client("opencode"), SERVER, { opencodeShape: "v1" });
+  assert.equal(entry.enabled, true);
+  assert.equal(entry.timeout, 60000);
+});
+
+test("timeout OpenCode v2 berupa objek startup/catalog di atas 5000 ms (FR-033)", () => {
   const entry = serializeEntry(client("opencode"), SERVER);
-  assert.ok(entry.timeout, "timeout harus selalu ditulis pada OpenCode");
-  assert.ok(entry.timeout > 5000, `timeout ${entry.timeout} harus melebihi batas bawaan 5000 ms`);
+  const timeout = entry.timeout as { startup?: number; catalog?: number; execution?: number };
+  assert.equal(typeof timeout, "object", "skema v2 menolak timeout berupa angka");
+  assert.ok(timeout.startup && timeout.startup > 5000, `startup ${timeout.startup} harus melebihi 5000 ms`);
+  assert.ok(timeout.catalog && timeout.catalog > 5000, `catalog ${timeout.catalog} harus melebihi 5000 ms`);
+  assert.equal(timeout.execution, undefined, "execution tidak boleh dipersempit diam-diam");
 });
 
 test("args adalah path absolut dan disimpan sebagai elemen array, bukan string shell", () => {
@@ -157,23 +179,37 @@ test("args adalah path absolut dan disimpan sebagai elemen array, bukan string s
 test("deteksi skema OpenCode membedakan v1 dan v2", () => {
   assert.equal(detectOpenCodeShape({ mcp: { a: {} } }), "v1");
   assert.equal(detectOpenCodeShape({ mcp: { servers: { a: {} } } }), "v2");
+  assert.equal(detectOpenCodeShape({ mcp: {} }), "v2", "mcp kosong tidak membawa sinyal v1");
+  assert.equal(detectOpenCodeShape({ mcp: { timeout: { startup: 1 } } }), "v2");
   assert.equal(detectOpenCodeShape({}), "unknown");
   assert.equal(detectOpenCodeShape(null), "unknown");
 });
 
-test("installer menolak menulis ke konfigurasi OpenCode skema v2 (D-003)", () => {
+test("installer menulis ke mcp.servers pada konfigurasi OpenCode v2 (D-003)", () => {
   fs.writeFileSync(
     openCodePath,
-    JSON.stringify({ mcp: { servers: { lain: { type: "local" } } } }, null, 2)
+    JSON.stringify(
+      {
+        mcp: {
+          timeout: { startup: 120000 },
+          servers: { lain: { type: "local", command: ["echo"] } },
+        },
+      },
+      null,
+      2
+    )
   );
   const doc = readConfigDocument(openCodePath);
-  assert.throws(
-    () => mergeServerEntry(doc, client("opencode"), serializeEntry(client("opencode"), SERVER)),
-    /v2/
-  );
-  // Berkas tidak boleh berubah sama sekali.
-  assert.equal(readJson(openCodePath).mcp.servers.lain.type, "local");
-  assert.equal(readJson(openCodePath).mcp[SERVER_NAME], undefined);
+  const entry = opencodeEntry(doc.parsed);
+  const merged = mergeServerEntry(doc, client("opencode"), entry);
+  assert.equal(merged.changed, true);
+  configWrite(merged);
+
+  const after = readJson(openCodePath);
+  assert.deepEqual(after.mcp.servers.lain, { type: "local", command: ["echo"] }, "entri lain harus utuh");
+  assert.deepEqual(after.mcp.servers[SERVER_NAME], entry, "entri kbbi harus berada di mcp.servers");
+  assert.deepEqual(after.mcp.timeout, { startup: 120000 }, "timeout host harus utuh");
+  assert.equal(after.mcp[SERVER_NAME], undefined, "entri v1 datar tidak boleh dibuat");
 });
 
 // ============================================================
@@ -182,10 +218,9 @@ test("installer menolak menulis ke konfigurasi OpenCode skema v2 (D-003)", () =>
 
 test("menggabungkan entri pada berkas yang belum punya rootKey", () => {
   const doc = readConfigDocument(openCodePath);
-  const entry = serializeEntry(client("opencode"), SERVER);
-  const merged = mergeServerEntry(doc, client("opencode"), entry);
+  const merged = mergeServerEntry(doc, client("opencode"), opencodeEntry(doc.parsed));
   assert.equal(merged.changed, true);
-  assert.ok(merged.doc.parsed.mcp[SERVER_NAME]);
+  assert.ok(merged.doc.parsed.mcp.servers[SERVER_NAME], "berkas baru memakai skema v2");
 });
 
 test("entri milik pengguna lain tidak berubah dan tidak hilang (FR-008)", () => {
@@ -200,16 +235,13 @@ test("entri milik pengguna lain tidak berubah dan tidak hilang (FR-008)", () => 
   const doc = readConfigDocument(openCodePath);
   const before = readJson(openCodePath).mcp["unrelated-tool"];
 
-  const merged = mergeServerEntry(
-    doc,
-    client("opencode"),
-    serializeEntry(client("opencode"), SERVER)
-  );
+  const merged = mergeServerEntry(doc, client("opencode"), opencodeEntry(doc.parsed));
   configWrite(merged);
 
   const after = readJson(openCodePath);
   assert.deepEqual(after.mcp["unrelated-tool"], before, "entri lain harus utuh");
   assert.ok(after.mcp[SERVER_NAME], "entri kbbi harus ada");
+  assert.equal(after.mcp.servers, undefined, "dokumen v1 tidak boleh diubah menjadi v2");
 });
 
 test("entri dengan nama sama diperbarui, bukan diduplikasi (edge case)", () => {
@@ -222,7 +254,8 @@ test("entri dengan nama sama diperbarui, bukan diduplikasi (edge case)", () => {
       2
     )
   );
-  const merged = mergeServerEntry(readConfigDocument(openCodePath), record, serializeEntry(record, SERVER));
+  const doc = readConfigDocument(openCodePath);
+  const merged = mergeServerEntry(doc, record, opencodeEntry(doc.parsed));
   configWrite(merged);
 
   const mcp = readJson(openCodePath).mcp;
@@ -232,7 +265,7 @@ test("entri dengan nama sama diperbarui, bukan diduplikasi (edge case)", () => {
 
 test("gabungan kedua dengan isi identik tidak mengubah berkas (FR-007, SC-003)", () => {
   const record = client("opencode");
-  const entry = serializeEntry(record, SERVER);
+  const entry = opencodeEntry(null);
 
   const first = mergeServerEntry(readConfigDocument(openCodePath), record, entry);
   configWrite(first);
@@ -263,7 +296,8 @@ test("restore mengembalikan byte asli, bukan hasil serialisasi ulang (SC-007)", 
   fs.writeFileSync(openCodePath, original);
   const before = sha(openCodePath);
 
-  configWrite(mergeServerEntry(readConfigDocument(openCodePath), record, serializeEntry(record, SERVER)));
+  const doc = readConfigDocument(openCodePath);
+  configWrite(mergeServerEntry(doc, record, opencodeEntry(doc.parsed)));
   assert.notEqual(sha(openCodePath), before, "install harus mengubah berkas");
 
   restoreBackup("opencode");
@@ -295,7 +329,7 @@ test("cadangan mencatat berkas yang sebelumnya tidak ada (FR-006)", () => {
 });
 
 // ============================================================
-test("uninstall menghapus hanya entri kbbi (FR-020)", () => {
+test("uninstall menghapus hanya entri kbbi pada dokumen v1 (FR-020)", () => {
   const record = client("opencode");
   fs.writeFileSync(
     openCodePath,
@@ -319,6 +353,55 @@ test("uninstall menghapus hanya entri kbbi (FR-020)", () => {
   assert.equal(after.mcp[SERVER_NAME], undefined, "entri kbbi harus hilang");
   assert.ok(after.mcp.tetap, "entri lain harus tetap ada");
   assert.equal(after.$schema, "https://opencode.ai/config.json", "kunci lain harus tetap ada");
+});
+
+test("uninstall pada dokumen v2 menghapus mcp.servers.kbbi dan menyisakan timeout host (FR-020)", () => {
+  const record = client("opencode");
+  fs.writeFileSync(
+    openCodePath,
+    JSON.stringify(
+      {
+        mcp: {
+          timeout: { startup: 120000 },
+          servers: {
+            [SERVER_NAME]: { type: "local", command: ["x"] },
+            "tetap": { type: "local", command: ["echo"] },
+          },
+        },
+        $schema: "https://opencode.ai/config.json",
+      },
+      null,
+      2
+    )
+  );
+  const removed = removeServerEntry(readConfigDocument(openCodePath), record);
+  assert.equal(removed.changed, true);
+  configWrite(removed);
+
+  const after = readJson(openCodePath);
+  assert.equal(after.mcp.servers[SERVER_NAME], undefined, "entri kbbi harus hilang");
+  assert.ok(after.mcp.servers.tetap, "entri lain harus tetap ada");
+  assert.deepEqual(after.mcp.timeout, { startup: 120000 }, "timeout host tidak boleh ikut hilang");
+  assert.equal(after.$schema, "https://opencode.ai/config.json", "kunci lain harus tetap ada");
+});
+
+test("uninstall v2 terakhir tidak menghapus objek mcp milik host", () => {
+  const record = client("opencode");
+  fs.writeFileSync(
+    openCodePath,
+    JSON.stringify(
+      { mcp: { timeout: { startup: 120000 }, servers: { [SERVER_NAME]: { type: "local", command: ["x"] } } } },
+      null,
+      2
+    )
+  );
+  const removed = removeServerEntry(readConfigDocument(openCodePath), record);
+  assert.equal(removed.changed, true);
+  configWrite(removed);
+
+  const after = readJson(openCodePath);
+  assert.equal(after.mcp.servers, undefined, "servers kosong dibuang");
+  assert.deepEqual(after.mcp.timeout, { startup: 120000 }, "mcp dan timeout host harus tetap ada");
 });
 
 test("uninstall pada konfigurasi tanpa entri kbbi tidak mengubah apa pun", () => {

@@ -56,8 +56,9 @@ const CLIENTS = [
       { relative: ['opencode.json'], scope: 'project' },
     ],
     skillTarget: { scope: 'user', relative: ['.config', 'opencode', 'skills', 'kbbi-mcp'] },
-    // D-003: dua skema tidak kompatibel sedang sama-sama terdokumentasi.
-    knownConflicts: ['opencode-v2-shape'],
+    // D-003: v1 (entri langsung di `mcp`) dan v2 (`mcp.servers`) sama-sama
+    // didukung; bentuknya dideteksi saat runtime, bukan ditolak.
+    knownConflicts: [],
     detect: ['command:opencode', 'file:global', 'file:project'],
   },
   {

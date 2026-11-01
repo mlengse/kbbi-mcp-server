@@ -19,6 +19,9 @@ const clients = require('./clients.cjs');
 const SERVER_NAME = 'kbbi';
 const BACKUP_DIR = ['.kbbi-mcp', 'backups'];
 
+/** Kunci `mcp` yang hanya ada pada skema OpenCode v2, bukan nama server. */
+const OPENCODE_V2_META_KEYS = new Set(['servers', 'timeout']);
+
 /** Root repositori diturunkan dari lokasi modul, bukan dari process.cwd(). */
 function resolveRepoRoot() {
   return path.resolve(__dirname, '..', '..');
@@ -97,9 +100,15 @@ function readConfigDocument(filePath) {
  * @property {'custom'} [source]
  * @property {'local'} [type]
  * @property {boolean} [enabled]
+ * @property {boolean} [disabled]
  * @property {Record<string, string>} [environment]
- * @property {number} [timeout]
+ * @property {number|{startup?: number, catalog?: number, execution?: number}} [timeout]
  */
+
+/** Objek JSON biasa, bukan array/null. */
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 /**
  * Bentuk entri per `entryShape` sebuah record.
@@ -107,7 +116,10 @@ function readConfigDocument(filePath) {
  *   zed-style     : claude-style + source: "custom" (tanpa ini Zed menganggap
  *                   entri berasal dari ekstensi)
  *   opencode-style: type local, command SEBAGI ARRAY yang memuat executable,
- *                   enabled, dan kunci env bernama `environment` bukan `env`
+ *                   dan kunci env bernama `environment` bukan `env`.
+ *                   v1 menambahkan `enabled` dan `timeout` berupa angka;
+ *                   v2 (skema saat ini) memakai `timeout` berupa objek
+ *                   {startup, catalog, execution} dan tidak mengenal `enabled`.
  *
  * @returns {SerializedEntry}
  */
@@ -115,13 +127,27 @@ function serializeEntry(record, server, options = {}) {
   const env = { ...(server.env || {}) };
 
   if (record.entryShape === 'opencode-style') {
+    // FR-033: batas bawaan 5000ms lebih pendek dari satu putaran CDN.
+    const timeout = options.timeout ?? 60000;
+    const shape = options.opencodeShape ?? 'v2';
+
+    if (shape === 'v2') {
+      // Hanya `startup` dan `catalog` yang dipersempit. `execution` sengaja
+      // tidak ditulis supaya batas bawaan host tidak ikut turun.
+      return {
+        type: 'local',
+        command: [server.command, ...server.args],
+        environment: env,
+        timeout: { startup: timeout, catalog: timeout },
+      };
+    }
+
     return {
       type: 'local',
       command: [server.command, ...server.args],
       enabled: true,
       environment: env,
-      // FR-033: batas bawaan 5000ms lebih pendek dari satu putaran CDN.
-      timeout: options.timeout ?? 60000,
+      timeout,
     };
   }
 
@@ -136,31 +162,40 @@ function serializeEntry(record, server, options = {}) {
  * v1: entri langsung di bawah `mcp`, memakai `enabled`.
  * v2: bersarang di `mcp.servers`, memakai `disabled`.
  * Mengembalikan 'v1' | 'v2' | 'unknown'.
+ *
+ * `mcp` yang kosong atau hanya berisi kunci meta v2 dianggap v2: tidak ada
+ * sinyal v1 di dalamnya, dan v2 adalah skema OpenCode saat ini.
  */
 function detectOpenCodeShape(parsed) {
-  if (!parsed || typeof parsed !== 'object') return 'unknown';
+  if (!isPlainObject(parsed)) return 'unknown';
   const mcp = parsed.mcp;
-  if (!mcp || typeof mcp !== 'object' || Array.isArray(mcp)) return 'unknown';
-  if (mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers)) {
-    return 'v2';
-  }
-  return 'v1';
+  if (mcp === undefined) return 'unknown';
+  if (!isPlainObject(mcp)) return 'unknown';
+  if (isPlainObject(mcp.servers)) return 'v2';
+
+  const entryKeys = Object.keys(mcp).filter((key) => !OPENCODE_V2_META_KEYS.has(key));
+  return entryKeys.length > 0 ? 'v1' : 'v2';
+}
+
+/**
+ * Bentuk entri yang harus dipakai untuk sebuah dokumen OpenCode.
+ * Dokumen yang jelas v1 dipertahankan apa adanya; selain itu dipakai v2.
+ * Dipakai bersama oleh `serializeEntry` dan `serverContainer` supaya entri dan
+ * lokasi root tidak pernah berbeda skema.
+ */
+function openCodeEntryShape(parsed) {
+  return detectOpenCodeShape(parsed) === 'v1' ? 'v1' : 'v2';
 }
 
 /**
  * Konflik yang membuat installer menolak menulis ke dokumen ini.
  * Mengembalikan string alasan, atau null bila aman ditulis.
+ *
+ * Skema OpenCode v1 dan v2 sama-sama didukung (D-003): bentuk entri dan lokasi
+ * root ditentukan saat runtime oleh `detectOpenCodeShape`.
  */
 function conflictReason(record, doc) {
   if (!doc.exists || doc.parseError || !doc.parsed) return null;
-  if (record.knownConflicts.includes('opencode-v2-shape')) {
-    if (detectOpenCodeShape(doc.parsed) === 'v2') {
-      return (
-        'OpenCode memakai skema v2 (mcp.servers), sedangkan installer menulis v1. ' +
-        'Installer menolak menulis skema yang tidak cocok agar entri tidak rusak diam-diam.'
-      );
-    }
-  }
   return null;
 }
 
@@ -170,7 +205,33 @@ function deepEqual(a, b) {
 }
 
 /**
- * Gabungkan entri server ke dalam dokumen, di bawah `record.rootKey`.
+ * Wadah entri server pada sebuah dokumen.
+ *   v1 / klien lain : `parsed[record.rootKey]`
+ *   OpenCode v2     : `parsed.mcp.servers`
+ * Selalu mengembalikan objek wadah, meski belum ada di dokumen.
+ */
+function serverContainer(parsed, record) {
+  const base = isPlainObject(parsed) ? parsed : {};
+  if (record.entryShape === 'opencode-style' && openCodeEntryShape(base) === 'v2') {
+    return {
+      nested: true,
+      servers: isPlainObject(base.mcp) && isPlainObject(base.mcp.servers) ? base.mcp.servers : {},
+    };
+  }
+  const key = record.rootKey;
+  return { nested: false, key, servers: isPlainObject(base[key]) ? base[key] : {} };
+}
+
+/** Tulis wadah entri kembali ke dokumen, tanpa menyentuh kunci lain. */
+function withServerContainer(base, container, servers) {
+  if (container.nested) {
+    return { ...base, mcp: { ...(isPlainObject(base.mcp) ? base.mcp : {}), servers } };
+  }
+  return { ...base, [container.key]: servers };
+}
+
+/**
+ * Gabungkan entri server ke dalam dokumen, di wadah yang sesuai skemanya.
  * Mengembalikan { doc, changed }.
  *   changed === false berarti isi berkas identik sehingga TIDAK ditulis,
  *   itulah yang membuat instalasi kedua menjadi byte-identik (FR-007).
@@ -182,33 +243,26 @@ function mergeServerEntry(doc, record, entry, options = {}) {
   const reason = conflictReason(record, doc);
   if (reason) throw new Error(reason);
 
-  const base = doc.parsed && typeof doc.parsed === 'object' ? doc.parsed : {};
-  const rootKey =
-    record.entryShape === 'opencode-style' && detectOpenCodeShape(base) === 'v2'
-      ? 'mcp.servers'
-      : record.rootKey;
+  const base = isPlainObject(doc.parsed) ? doc.parsed : {};
+  const container = serverContainer(base, record);
 
-  const existingServers =
-    base[rootKey] && typeof base[rootKey] === 'object' && !Array.isArray(base[rootKey])
-      ? base[rootKey]
-      : {};
-
-  const existing = existingServers[SERVER_NAME];
+  const existing = container.servers[SERVER_NAME];
   const identical =
     existing !== undefined &&
     deepEqual(existing, entry) &&
     (doc.exists === true ? sameFormatting(doc.raw, base) : true);
 
-  // Entri milik pengguna lain tidak pernah hilang, hanya kunci root yang
-  // ditambahkan bila belum ada.
-  const next = { ...base, [rootKey]: { ...existingServers, [SERVER_NAME]: entry } };
+  // Entri milik pengguna lain tidak pernah hilang, hanya entri kbbi yang
+  // ditambahkan atau diganti.
+  const nextServers = { ...container.servers, [SERVER_NAME]: entry };
+  const next = withServerContainer(base, container, nextServers);
 
   if (doc.exists && identical) {
     return { doc, changed: false };
   }
 
   return {
-    doc: { ...doc, parsed: next, servers: next[rootKey], exists: true },
+    doc: { ...doc, parsed: next, servers: nextServers, exists: true },
     changed: true,
   };
 }
@@ -310,24 +364,28 @@ function removeServerEntry(doc, record) {
   if (doc.parseError) {
     throw new Error(`Konfigurasi ${doc.path} rusak, tidak ditulis: ${doc.parseError}`);
   }
-  const base = doc.parsed && typeof doc.parsed === 'object' ? doc.parsed : {};
-  const existingServers =
-    base[record.rootKey] && typeof base[record.rootKey] === 'object'
-      ? base[record.rootKey]
-      : {};
+  const base = isPlainObject(doc.parsed) ? doc.parsed : {};
+  const container = serverContainer(base, record);
 
-  if (!(SERVER_NAME in existingServers)) {
+  if (!(SERVER_NAME in container.servers)) {
     return { doc, changed: false };
   }
 
-  const nextServers = { ...existingServers };
+  const nextServers = { ...container.servers };
   delete nextServers[SERVER_NAME];
 
   const next = { ...base };
-  if (Object.keys(nextServers).length === 0) {
-    delete next[record.rootKey];
+  if (container.nested) {
+    // `mcp` mungkin masih memuat `timeout`; hanya `servers` yang dibuang bila
+    // kosong, dan `mcp` sendiri tidak pernah dihapus.
+    const nextMcp = { ...(isPlainObject(base.mcp) ? base.mcp : {}) };
+    if (Object.keys(nextServers).length === 0) delete nextMcp.servers;
+    else nextMcp.servers = nextServers;
+    next.mcp = nextMcp;
+  } else if (Object.keys(nextServers).length === 0) {
+    delete next[container.key];
   } else {
-    next[record.rootKey] = nextServers;
+    next[container.key] = nextServers;
   }
 
   return { doc: { ...doc, parsed: next, servers: nextServers, exists: true }, changed: true };
@@ -376,7 +434,9 @@ module.exports = {
   readConfigDocument,
   serializeEntry,
   detectOpenCodeShape,
+  openCodeEntryShape,
   conflictReason,
+  serverContainer,
   mergeServerEntry,
   removeServerEntry,
   writeConfigDocument,
